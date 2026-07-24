@@ -4,7 +4,7 @@ A studio to **teach** Augusto Garau's color theory and **simulate** his theory o
 perceptual **Color Transparency**. The name folds *Garau* into *armonie* — the
 Italian of his book, *Le armonie del colore*.
 
-> *In memory of Professor Augusto Garau (1923–2010) — painter, educator, scholar.*
+> *In memory of Professor Augusto Garau (1923–2010) — painter, scholar and unforgettable professor of color theory and phychology of form.*
 
 ![The Composer](docs/screenshots/composer.png)
 
