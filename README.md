@@ -1,10 +1,13 @@
 # Garau Armonie
 
+[![Live demo](https://img.shields.io/badge/Live_demo-tsevis.github.io%2Fgarauarmonie-8A5A44?style=flat-square&logo=github)](https://tsevis.github.io/garauarmonie/)
+[![Deploy](https://github.com/tsevis/garauarmonie/actions/workflows/deploy.yml/badge.svg)](https://github.com/tsevis/garauarmonie/actions/workflows/deploy.yml)
+
 A studio to **teach** Augusto Garau's color theory and **simulate** his theory of
 perceptual **Color Transparency**. The name folds *Garau* into *armonie* — the
 Italian of his book, *Le armonie del colore*.
 
-> *In memory of Professor Augusto Garau (1923–2010) — painter, scholar and unforgettable professor of color theory and phychology of form.*
+> *In memory of Professor Augusto Garau (1923–2010) — painter, scholar and unforgettable professor of color theory and psychology of form.*
 
 ![The Composer](docs/screenshots/composer.png)
 
