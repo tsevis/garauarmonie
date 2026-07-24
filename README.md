@@ -6,55 +6,122 @@ Italian of his book, *Le armonie del colore*.
 
 > *In memory of Professor Augusto Garau (1923–2010) — painter, educator, scholar.*
 
-## Why one app
+![The Composer](docs/screenshots/composer.png)
 
-One unified web studio, several modules:
+Everything runs on **one framework-agnostic TypeScript color engine**
+(`@garau/engine`). The web studio and a Photoshop plugin are both thin clients of
+the same math, so a color is analyzed identically wherever you meet it.
 
-- **Composer** — the four-zone transparency simulator (primary creative tool).
-- **Analyzer** — decompose any color as a Garau visual mixture; classify color pairs.
-- **Gallery** — curated & saved transparency displays; recreations from *Color Harmonies*.
-- **Theory** — an interactive textbook of the theory.
+---
+
+## The studio
+
+### Composer — the four-zone transparency simulator
+
+Set two backgrounds (**A**, **B**), a veil color (**t**) and its transparency
+(**α**); the overlaps **P** and **Q** are computed by Metelli's equations. Every
+zone is read live for validity (Metelli's three lightness conditions + Garau's
+chromatic conditions), a transparency-quality score, and the juxtaposition type
+with its concord/discord harmony. **Inverse** mode recovers *t* and *α* from an
+existing display, and any figure exports as PNG or SVG. *(Shown above.)*
+
+### Stacker — multiple transparencies
+
+![The Stacker](docs/screenshots/stacker.png)
+
+Stack veils into ordered depth planes. Each plane is composited over the
+accumulated result beneath it and validated as a transparency against it. Because
+a translucent veil drawn at opacity `1−α` composites exactly like Metelli's
+average, **what you see equals what the engine computes**. The default walks
+Garau's sequence — **Complete Inversion → Shared Subordinate → Shared Dominant** —
+with each plane a valid transparency. Open any plane in the Composer.
+
+### Analyzer — visual mixture & harmony
+
+![The Analyzer](docs/screenshots/analyzer.png)
+
+Drop any color on the chromatic disk (Garau's **R · Y · B** primaries) to read its
+dominant/subordinate decomposition, Garau notation (e.g. `yR`), and *splittability*
+— how readily it separates into a transparent layer. Pair mode classifies two
+colors into Arnheim's four juxtapositions and **leads with Garau's concord/discord
+harmony grouping**, keeping "how well it reads as a veil" as a separate dimension.
+
+![The Analyzer, pair mode](docs/screenshots/analyzer-pair.png)
+
+### Gallery — presets & saved displays
+
+![The Gallery](docs/screenshots/gallery.png)
+
+Curated, engine-searched transparency displays grouped by juxtaposition type, by
+transparency degree, and as original studies. Click any card to load it into the
+Composer; save your own to a local collection.
+
+### Theory — an interactive textbook
+
+![The Theory reader](docs/screenshots/theory.png)
+
+Ten chapters with live figures: derive Metelli's equations with sliders, watch the
+four-zone reading collapse without a second background, see every validity
+condition light up or fail, and explore the chromatic disk and the four
+juxtapositions. The prose is original exposition grounded in *Color Harmonies*.
+
+### Photoshop plugin
+
+<img src="docs/screenshots/plugin.png" alt="The Photoshop UXP panel" width="360" />
+
+A UXP panel that is a thin client of the same `@garau/engine`. Pull the document's
+foreground color into any slot, compute the overlaps, and push a result back to the
+foreground or fill a selection — the same math as the web studio. Load it via the
+Adobe UXP Developer Tool (see [`apps/photoshop/README.md`](apps/photoshop/README.md)).
+
+---
 
 ## Architecture
 
 The color math lives in **one framework-agnostic TypeScript package** so every
-surface is a thin client of the same engine — including a future Photoshop
-plugin (Adobe UXP plugins are HTML/JS/React, so they import this package directly).
+surface is a thin client of the same engine. Adobe UXP plugins are HTML/JS, so the
+Photoshop panel imports the package directly.
 
 ```
 garauarmonie/
 ├── packages/
-│   └── engine/        @garau/engine — the color engine (Metelli + Garau). Fully tested.
+│   └── engine/        @garau/engine — the color engine (Metelli + Garau). 32 tests.
 ├── apps/
-│   ├── web/           Teaching + simulator (Vite + React). Ships as a static site.
-│   └── photoshop/     UXP plugin (Phase 2) — imports the same engine.
-└── reference/         Kept, not deleted:
+│   ├── web/           The studio (Vite + React + Tailwind). Ships as a static site.
+│   └── photoshop/     UXP plugin (vanilla TS + esbuild) — imports the same engine.
+├── docs/screenshots/  The images in this README.
+└── reference/         Kept as source material:
     ├── python-engine/   the original Python engine → test oracle
-    ├── COLORHARMONIES_ENGLISH.pdf
     ├── Transparencies.png   (Garau's required irregular figure)
     └── plan.md
 ```
 
-**Build order:** engine → web Composer → Theory/Gallery/Analyzer → Photoshop plugin.
+*(The book PDF used to ground the Theory text is kept locally but excluded from the
+repository — it is copyrighted; the in-app text is original paraphrase.)*
 
 ## The engine
 
 `@garau/engine` implements, per RGB channel:
 
 - **Metelli's equations** — `P = α·A + (1−α)·t`, `Q = α·B + (1−α)·t`; forward,
-  inverse, and designer modes.
-- **Garau's visual-mixture system** — dominant/subordinate decomposition, notation
-  (e.g. `rB`), splittability, and Arnheim's four juxtaposition types.
-- **Validation** — Metelli's three conditions + Garau's ten chromatic conditions.
+  inverse, designer, and single-veil `compositeVeil` (for stacking).
+- **Garau's visual-mixture system** — dominant/subordinate decomposition, notation,
+  splittability, Arnheim's four juxtaposition types, and the concord/discord
+  harmony grouping.
+- **Validation** — Metelli's three conditions + Garau's chromatic conditions.
 
 ```bash
 npm install
 npm run build:engine   # compile the engine to dist/
-npm run test:engine    # 24 tests: round-trips, notation, validation
+npm run test:engine    # 32 tests: round-trips, notation, validation, stacking
+npm run dev            # run the web studio (http://localhost:5180)
 ```
 
 ## Provenance
 
-Two earlier prototypes of the same idea seeded this project and remain as source
-material: a React web app (`../augusto/garau-transparency-studio`, better UI) and a
-Python/tkinter app (`../augustogarau`, deeper engine — now the reference oracle).
+Two earlier prototypes of the same idea seeded this project: a React web app
+(better UI) and a Python/tkinter app (deeper engine — now the reference oracle).
+The engine was ported to TypeScript from the Python implementation, which is kept
+in `reference/` as a test oracle. Along the way two bugs in the reference were
+fixed: a backwards "lightness ordering" validity condition and a
+balanced-transparency check that never used the backgrounds.
