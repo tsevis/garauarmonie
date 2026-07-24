@@ -9,7 +9,7 @@ Italian of his book, *Le armonie del colore*.
 
 > *In memory of Professor Augusto Garau (1923–2010) — painter, scholar and unforgettable professor of color theory and psychology of form.*
 
-![The Composer](docs/screenshots/composer.png)
+![Garau Armonie — the Composer, sweeping a veil's transparency](docs/demo.gif)
 
 Everything runs on **one framework-agnostic TypeScript color engine**
 (`@garau/engine`). The web studio and a Photoshop plugin are both thin clients of
@@ -21,12 +21,15 @@ the same math, so a color is analyzed identically wherever you meet it.
 
 ### Composer — the four-zone transparency simulator
 
+![The Composer](docs/screenshots/composer.png)
+
 Set two backgrounds (**A**, **B**), a veil color (**t**) and its transparency
 (**α**); the overlaps **P** and **Q** are computed by Metelli's equations. Every
 zone is read live for validity (Metelli's three lightness conditions + Garau's
 chromatic conditions), a transparency-quality score, and the juxtaposition type
 with its concord/discord harmony. **Inverse** mode recovers *t* and *α* from an
-existing display, and any figure exports as PNG or SVG. *(Shown above.)*
+existing display, and any figure exports as PNG or SVG. *(The hero above shows the
+α slider sweeping live.)*
 
 ### Stacker — multiple transparencies
 
