@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 5,
+  "id": "com.garauarmonie.transparency",
+  "name": "Garau Transparency",
+  "version": "0.1.0",
+  "main": "index.html",
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "24.0.0"
+    }
+  ],
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "garauTransparencyPanel",
+      "label": { "default": "Garau Transparency" },
+      "minimumSize": { "width": 230, "height": 320 },
+      "maximumSize": { "width": 1200, "height": 2000 },
+      "preferredDockedSize": { "width": 320, "height": 620 },
+      "preferredFloatingSize": { "width": 340, "height": 640 }
+    }
+  ],
+  "requiredPermissions": {
+    "localFileSystem": "plugin"
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+apps/web/dist/
+apps/*/node_modules/
+packages/*/node_modules/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Copyrighted reference material — kept locally, not tracked (Theory text is
+# original paraphrase, not a reproduction). See reference/ locally.
+reference/COLORHARMONIES_ENGLISH.pdf

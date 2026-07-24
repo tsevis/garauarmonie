@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+}
+
+@layer components {
+  /* Color swatches: no rounded corners, minimal border — borders influence
+     color perception, as Garau himself would insist. */
+  .swatch {
+    @apply block;
+  }
+}
+
+/* Range input styling for the alpha slider. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: theme('colors.line');
+  outline: none;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: theme('colors.ink');
+  cursor: pointer;
+  border: 2px solid theme('colors.panel');
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: theme('colors.ink');
+  cursor: pointer;
+  border: 2px solid theme('colors.panel');
+}
