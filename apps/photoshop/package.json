@@ -1,15 +1,16 @@
 {
   "name": "photoshop",
   "private": true,
-  "version": "0.1.0",
-  "description": "Garau Transparency — Photoshop UXP plugin. A thin client of @garau/engine.",
+  "version": "0.2.0",
+  "description": "Garau Transparency — Photoshop UXP plugin. A thin client of @garau/engine and @garau/swatches.",
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@garau/engine": "*"
+    "@garau/engine": "*",
+    "@garau/swatches": "*"
   },
   "devDependencies": {
     "esbuild": "^0.23.0",

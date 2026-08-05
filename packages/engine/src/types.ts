@@ -44,6 +44,24 @@ export interface LCH {
   readonly h: number;
 }
 
+/**
+ * OKLab (Björn Ottosson, 2020) — a Lab-style perceptually uniform space with
+ * more even hue than CIE Lab. L: 0–1 (black–white), a/b: opponent axes,
+ * roughly -0.4..0.4 for sRGB.
+ */
+export interface OKLab {
+  readonly L: number;
+  readonly a: number;
+  readonly b: number;
+}
+
+/** Cylindrical OKLab. L: 0–1, C: 0–~0.4 for sRGB, h: 0–360. */
+export interface OKLCH {
+  readonly L: number;
+  readonly C: number;
+  readonly h: number;
+}
+
 /** Garau's three fundamental primaries. */
 export type DominantPrimary = 'R' | 'Y' | 'B';
 

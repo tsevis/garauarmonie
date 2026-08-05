@@ -66,3 +66,16 @@ button.wide:hover { border-color: var(--accent); color: var(--accent); }
 .status.info { color: var(--muted); }
 .status.ok { color: var(--ok); }
 .status.error { color: var(--err); }
+
+select.hexinput { appearance: none; cursor: pointer; }
+
+.swatchgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(24px, 1fr)); gap: 2px; margin-bottom: 12px; }
+.swatchgrid.small { grid-template-columns: repeat(auto-fill, minmax(28px, 1fr)); margin-top: 6px; margin-bottom: 0; }
+.swatchcell {
+  aspect-ratio: 1; border-radius: 2px; border: 1px solid rgba(255,255,255,0.12);
+  padding: 0; cursor: pointer;
+}
+.swatchcell:hover { border-color: var(--accent); }
+.swatchcell.selected { border: 2px solid var(--text); }
+
+.section.detail { gap: 6px; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }

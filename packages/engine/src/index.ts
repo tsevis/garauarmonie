@@ -15,6 +15,8 @@ export type {
   HSL,
   Lab,
   LCH,
+  OKLab,
+  OKLCH,
   DominantPrimary,
   GarauMixture,
   JuxtapositionType,
@@ -41,6 +43,19 @@ export {
   getLuminance,
   getContrastRatio,
 } from './conversions.js';
+
+export {
+  rgbToOklab,
+  oklabToRgb,
+  isOklabInGamut,
+  oklabToOklch,
+  oklchToOklab,
+  rgbToOklch,
+  oklchToRgb,
+  oklchMaxChroma,
+  NEUTRAL_CHROMA_FLOOR,
+  SRGB_CHROMA_CEILING,
+} from './oklab.js';
 
 export {
   compositeVeil,

@@ -75,30 +75,42 @@ juxtapositions. The prose is original exposition grounded in *Color Harmonies*.
 
 <img src="docs/screenshots/plugin.png" alt="The Photoshop UXP panel" width="360" />
 
-A UXP panel that is a thin client of the same `@garau/engine`. Pull the document's
-foreground color into any slot, compute the overlaps, and push a result back to the
-foreground or fill a selection — the same math as the web studio. Load it via the
-Adobe UXP Developer Tool (see [`apps/photoshop/README.md`](apps/photoshop/README.md)).
+A UXP panel with two tabs, both thin clients of the shared packages.
+**Composer** is the same forward/inverse transparency tool as above: pull the
+document's foreground color into any slot, compute the overlaps, and push a
+result back to the foreground or fill a selection. **Library** browses the
+generated Augusto swatch system (`@garau/swatches`) — search, filter by Garau
+notation, and read a swatch's full decomposition and live concord neighbours,
+the same data `apps/web`'s Gallery and Nino's own Augusto workspace draw on.
+Load it via the Adobe UXP Developer Tool (see
+[`apps/photoshop/README.md`](apps/photoshop/README.md)).
+
+Illustrator is scoped, not built — UXP has no public API for it as of this
+writing, only legacy CEP, a different toolchain Adobe is itself migrating
+away from. See [`apps/illustrator/README.md`](apps/illustrator/README.md).
 
 ---
 
 ## Architecture
 
-The color math lives in **one framework-agnostic TypeScript package** so every
-surface is a thin client of the same engine. Adobe UXP plugins are HTML/JS, so the
-Photoshop panel imports the package directly.
+The color math lives in **one framework-agnostic TypeScript package**, and the
+generated swatch system in a second, so every surface is a thin client of the
+same engine and the same data. Adobe UXP plugins are HTML/JS, so the
+Photoshop panel imports both packages directly.
 
 ```
 garauarmonie/
 ├── packages/
-│   └── engine/        @garau/engine — the color engine (Metelli + Garau). 32 tests.
+│   ├── engine/         @garau/engine — the color engine (Metelli + Garau).
+│   └── swatches/        @garau/swatches — the generated Augusto swatch system.
 ├── apps/
-│   ├── web/           The studio (Vite + React + Tailwind). Ships as a static site.
-│   └── photoshop/     UXP plugin (vanilla TS + esbuild) — imports the same engine.
-├── docs/screenshots/  The images in this README.
-└── reference/         Kept as source material:
-    ├── python-engine/   the original Python engine → test oracle
-    ├── Transparencies.png   (Garau's required irregular figure)
+│   ├── web/             The studio (Vite + React + Tailwind). Ships as a static site.
+│   ├── photoshop/        UXP plugin (vanilla TS + esbuild) — Composer + Library tabs.
+│   └── illustrator/      Scoped, not built — see its own README for why.
+├── docs/screenshots/    The images in this README.
+└── reference/           Kept as source material:
+    ├── python-engine/     the original Python engine → test oracle
+    ├── Transparencies.png     (Garau's required irregular figure)
     └── plan.md
 ```
 

@@ -69,3 +69,41 @@ export async function fillWithRGB(rgb: RGB): Promise<void> {
     { commandName: 'Fill with color' },
   );
 }
+
+/**
+ * Add the given RGB to the Swatches panel, as `name`.
+ *
+ * **Unlike `setForegroundRGB` and `fillWithRGB`, this action descriptor is
+ * not confirmed against a running Photoshop.** Every other action in this
+ * file was checked against a real document; there is none in this
+ * environment to check "make a colorSwatch" against. The shape below follows
+ * the same idiom `fill` above already uses and is verified for — `using` an
+ * enumerated `foregroundColor` selection rather than a raw reference — which
+ * is the best evidence available that it is right, not proof that it is.
+ *
+ * If this errors in Photoshop, the panel surfaces Photoshop's own message
+ * (via `guarded()` in the caller) — record the real action with the
+ * ScriptListener plugin (**File ▸ Scripts ▸ Script Events Manager**, or the
+ * standalone ScriptListener plugin) while adding a swatch by hand, and
+ * correct `_target`/`using` below to match what it logs.
+ */
+export async function addSwatchToPanel(rgb: RGB, name: string): Promise<void> {
+  const { core, action } = require('photoshop');
+  await core.executeAsModal(
+    async () => {
+      await action.batchPlay(
+        [
+          setColorDescriptor(rgb),
+          {
+            _obj: 'make',
+            _target: [{ _ref: 'colorSwatch' }],
+            using: { _enum: 'color', _value: 'foregroundColor' },
+            name,
+          },
+        ],
+        {},
+      );
+    },
+    { commandName: 'Add swatch' },
+  );
+}

@@ -1,242 +1,51 @@
 /**
  * Garau Transparency — Photoshop UXP panel.
  *
- * A thin client of @garau/engine (the exact package the web studio uses).
- * Forward mode: backgrounds A, B + veil t + α → overlaps P, Q. Inverse mode:
- * A, B + sampled overlaps P, Q → recovered veil t + α. Colors are pulled from
- * and pushed to the Photoshop document via psBridge.
+ * Two tabs, both thin clients of the shared engine packages: **Composer**
+ * (Metelli's four-zone tool, `@garau/engine`) and **Library** (the open
+ * Augusto swatch system, `@garau/swatches`) — the same two the user's Rule
+ * #2 asked this plugin to grow into, beyond the original forward/inverse
+ * calculator.
  */
-import type { RGB } from '@garau/engine';
-import {
-  computeForward,
-  computeInverse,
-  validateTransparency,
-  classifyJuxtaposition,
-  suggestTransparentColor,
-  analyzeVisualMixture,
-  rgbToHex,
-  hexToRgb,
-} from '@garau/engine';
-import { inPhotoshop, getForegroundRGB, setForegroundRGB, fillWithRGB } from './psBridge';
+import { el } from './dom';
+import { renderComposer } from './composer';
+import { renderLibrary } from './library';
 
-type Mode = 'forward' | 'inverse';
+type Tab = 'composer' | 'library';
 
-const state = {
-  mode: 'forward' as Mode,
-  A: { r: 221, g: 20, b: 66 } as RGB,
-  B: { r: 11, g: 160, b: 228 } as RGB,
-  t: { r: 243, g: 113, b: 114 } as RGB,
-  alpha: 0.625,
-  P: { r: 229, g: 55, b: 84 } as RGB,
-  Q: { r: 98, g: 142, b: 185 } as RGB,
-};
+const tabs: { id: Tab; label: string; render: (root: HTMLElement) => void | Promise<void> }[] = [
+  { id: 'composer', label: 'Composer', render: renderComposer },
+  { id: 'library', label: 'Library', render: renderLibrary },
+];
 
-const css = (c: RGB) => `rgb(${c.r}, ${c.g}, ${c.b})`;
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  attrs: Partial<Record<string, string>> = {},
-  ...children: (Node | string)[]
-): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) if (v != null) e.setAttribute(k, v);
-  for (const c of children) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
-  return e;
-}
-
-let statusEl: HTMLElement;
-function setStatus(msg: string, kind: 'info' | 'error' | 'ok' = 'info') {
-  statusEl.textContent = msg;
-  statusEl.className = `status ${kind}`;
-}
-
-async function guarded(fn: () => Promise<void>, okMsg: string) {
-  if (!inPhotoshop()) {
-    setStatus('Not running inside Photoshop.', 'error');
-    return;
-  }
-  try {
-    await fn();
-    setStatus(okMsg, 'ok');
-  } catch (err) {
-    setStatus(`Photoshop error: ${err instanceof Error ? err.message : String(err)}`, 'error');
-  }
-}
-
-/** A read-only computed color with push-to-document actions. */
-function outputRow(label: string, get: () => RGB): { row: HTMLElement; update: () => void } {
-  const swatch = el('div', { class: 'swatch' });
-  const hex = el('span', { class: 'hex' });
-  const notation = el('span', { class: 'badge' });
-  const setFg = el('button', { class: 'mini' }, '→ FG');
-  const fill = el('button', { class: 'mini' }, 'Fill');
-  setFg.addEventListener('click', () => guarded(() => setForegroundRGB(get()), `Foreground set to ${rgbToHex(get())}`));
-  fill.addEventListener('click', () => guarded(() => fillWithRGB(get()), `Filled with ${rgbToHex(get())}`));
-
-  const row = el(
-    'div',
-    { class: 'row output' },
-    swatch,
-    el('div', { class: 'meta' }, el('div', { class: 'label' }, label, notation), hex),
-    el('div', { class: 'actions' }, setFg, fill),
-  );
-  const update = () => {
-    const c = get();
-    swatch.style.backgroundColor = css(c);
-    hex.textContent = rgbToHex(c);
-    notation.textContent = analyzeVisualMixture(c).notation;
-  };
-  return { row, update };
-}
-
-/** An editable color input with a "pull from foreground" button. */
-function inputRow(label: string, key: 'A' | 'B' | 't' | 'P' | 'Q', onChange: () => void): HTMLElement {
-  const swatch = el('div', { class: 'swatch' });
-  const hex = el('input', { class: 'hexinput', type: 'text', spellcheck: 'false' }) as HTMLInputElement;
-  const pull = el('button', { class: 'mini' }, 'FG');
-
-  const sync = () => {
-    const c = state[key] as RGB;
-    swatch.style.backgroundColor = css(c);
-    hex.value = rgbToHex(c);
-  };
-  hex.addEventListener('change', () => {
-    const v = hex.value.trim();
-    if (/^#?[0-9a-fA-F]{6}$/.test(v) || /^#?[0-9a-fA-F]{3}$/.test(v)) {
-      (state[key] as RGB) = hexToRgb(v);
-      sync();
-      onChange();
-    }
-  });
-  pull.addEventListener('click', () =>
-    guarded(async () => {
-      (state[key] as RGB) = getForegroundRGB();
-      sync();
-      onChange();
-    }, `${label} set from foreground`),
-  );
-
-  sync();
-  return el(
-    'div',
-    { class: 'row input' },
-    swatch,
-    el('div', { class: 'meta' }, el('div', { class: 'label' }, label), hex),
-    el('div', { class: 'actions' }, pull),
-  );
-}
+let activeTab: Tab = 'composer';
 
 function build() {
   const root = document.getElementById('root')!;
   root.textContent = '';
 
   root.appendChild(el('h1', {}, 'Garau Transparency'));
-  root.appendChild(
-    el('p', { class: 'subtitle' }, inPhotoshop() ? 'Perceptual color transparency' : 'Preview — open in Photoshop for document actions'),
-  );
 
-  // Mode toggle
-  const toggle = el('div', { class: 'toggle' });
-  (['forward', 'inverse'] as Mode[]).forEach((m) => {
-    const b = el('button', { class: state.mode === m ? 'on' : '' }, m[0]!.toUpperCase() + m.slice(1));
-    b.addEventListener('click', () => {
-      state.mode = m;
-      build();
-    });
-    toggle.appendChild(b);
-  });
-  root.appendChild(toggle);
+  const tabBar = el('div', { class: 'toggle' });
+  const content = el('div', {});
 
-  const outputs: (() => void)[] = [];
-  const rerender = () => {
-    if (state.mode === 'forward') {
-      const r = computeForward(state.A, state.B, state.t, state.alpha);
-      state.P = r.P;
-      state.Q = r.Q;
-    } else {
-      const r = computeInverse(state.A, state.B, state.P, state.Q);
-      state.t = r.t;
-      state.alpha = r.alpha;
+  const activate = (tab: Tab) => {
+    activeTab = tab;
+    for (const child of Array.from(tabBar.children)) {
+      child.classList.toggle('on', child.getAttribute('data-tab') === tab);
     }
-    outputs.forEach((u) => u());
-    updateStatusPanel();
+    void tabs.find((t) => t.id === tab)!.render(content);
   };
 
-  // Inputs
-  const inputs = el('div', { class: 'section' });
-  inputs.appendChild(inputRow('A · background 1', 'A', rerender));
-  inputs.appendChild(inputRow('B · background 2', 'B', rerender));
-  if (state.mode === 'forward') {
-    inputs.appendChild(inputRow('t · veil', 't', rerender));
-
-    const alphaWrap = el('div', { class: 'alpha' });
-    const alphaLabel = el('span', {}, `α  ${(state.alpha * 100).toFixed(0)}%`);
-    const slider = el('input', { type: 'range', min: '0', max: '1', step: '0.01', value: String(state.alpha) }) as HTMLInputElement;
-    slider.addEventListener('input', () => {
-      state.alpha = Number(slider.value);
-      alphaLabel.textContent = `α  ${(state.alpha * 100).toFixed(0)}%`;
-      rerender();
-    });
-    alphaWrap.appendChild(alphaLabel);
-    alphaWrap.appendChild(slider);
-    inputs.appendChild(alphaWrap);
-
-    const auto = el('button', { class: 'wide' }, 'Auto-suggest veil');
-    auto.addEventListener('click', () => {
-      const s = suggestTransparentColor(state.A, state.B)[0];
-      if (s) {
-        state.t = s;
-        build();
-      }
-    });
-    inputs.appendChild(auto);
-  } else {
-    inputs.appendChild(inputRow('P · overlap over A', 'P', rerender));
-    inputs.appendChild(inputRow('Q · overlap over B', 'Q', rerender));
+  for (const tab of tabs) {
+    const button = el('button', { class: tab.id === activeTab ? 'on' : '', 'data-tab': tab.id }, tab.label);
+    button.addEventListener('click', () => activate(tab.id));
+    tabBar.appendChild(button);
   }
-  root.appendChild(inputs);
+  root.appendChild(tabBar);
+  root.appendChild(content);
 
-  // Outputs
-  const out = el('div', { class: 'section outputs' });
-  if (state.mode === 'forward') {
-    const p = outputRow('P · over A', () => state.P);
-    const q = outputRow('Q · over B', () => state.Q);
-    out.appendChild(p.row);
-    out.appendChild(q.row);
-    outputs.push(p.update, q.update);
-  } else {
-    const tOut = outputRow('t · veil', () => state.t);
-    out.appendChild(tOut.row);
-    outputs.push(tOut.update);
-  }
-  root.appendChild(out);
-
-  // Status panel (validity / quality / juxtaposition)
-  const panel = el('div', { class: 'statuspanel' });
-  root.appendChild(panel);
-
-  function updateStatusPanel() {
-    const report = validateTransparency(state.A, state.B, state.P, state.Q, state.t, state.alpha);
-    const jt = classifyJuxtaposition(state.P, state.Q);
-    panel.textContent = '';
-    panel.appendChild(
-      el(
-        'div',
-        { class: `verdict ${report.overallValid ? 'valid' : 'invalid'}` },
-        report.overallValid ? '✓ Valid transparency' : '✗ Not yet valid',
-      ),
-    );
-    panel.appendChild(el('div', { class: 'metric' }, `Quality  ${report.transparencyQuality.toFixed(0)}/100`));
-    panel.appendChild(el('div', { class: 'metric' }, `Type  ${jt.type}`));
-    if (state.mode === 'inverse') {
-      panel.appendChild(el('div', { class: 'metric' }, `Recovered α  ${(state.alpha * 100).toFixed(0)}%`));
-    }
-  }
-
-  statusEl = el('div', { class: 'status info' }, inPhotoshop() ? 'Ready.' : 'Preview mode.');
-  root.appendChild(statusEl);
-
-  rerender();
+  activate(activeTab);
 }
 
 build();
