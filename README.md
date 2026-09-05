@@ -1,6 +1,7 @@
 # Garau Armonie
 
 [![Live demo](https://img.shields.io/badge/Live_demo-tsevis.github.io%2Fgarauarmonie-8A5A44?style=flat-square&logo=github)](https://tsevis.github.io/garauarmonie/)
+[![CLI](https://img.shields.io/badge/CLI-garau-8A5A44?style=flat-square&logo=gnubash&logoColor=white)](packages/cli/README.md)
 [![Deploy](https://github.com/tsevis/garauarmonie/actions/workflows/deploy.yml/badge.svg)](https://github.com/tsevis/garauarmonie/actions/workflows/deploy.yml)
 
 A studio to **teach** Augusto Garau's color theory and **simulate** his theory of
