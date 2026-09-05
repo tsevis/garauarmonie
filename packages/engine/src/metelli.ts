@@ -12,10 +12,10 @@ import type { RGB, LCH, MetelliResult } from './types.js';
 import {
   rgbToNormalized,
   normalizedToRgb,
-  getLuminance,
   rgbToLch,
   lchToRgb,
 } from './conversions.js';
+import { checkMetelliConditions } from './metelliConditions.js';
 
 const clamp = (v: number, min = 0, max = 1): number => Math.max(min, Math.min(max, v));
 
@@ -89,9 +89,11 @@ export function computeForward(A: RGB, B: RGB, t: RGB, alpha: number): MetelliRe
   if (alpha < 0.05) warnings.push('Very low alpha — transparency effect may be imperceptible');
   else if (alpha > 0.95) warnings.push('Very high alpha — figure may appear opaque');
 
-  if (Math.abs(getLuminance(P) - getLuminance(Q)) <= Math.abs(getLuminance(A) - getLuminance(B))) {
-    warnings.push('Lightness ordering condition may be violated');
-  }
+  // Metelli's three conditions, from the single shared implementation. α is an
+  // input here and already covered by the two range warnings above, so the
+  // scission warning would only restate them.
+  const conditions = checkMetelliConditions(A, B, P, Q, alpha);
+  warnings.push(...conditions.warnings.filter((w) => !w.startsWith('Scission not realizable')));
 
   return { P, Q, t, alpha, valid: valid && warnings.length === 0, warnings };
 }
@@ -144,16 +146,11 @@ export function computeInverse(A: RGB, B: RGB, P: RGB, Q: RGB, tolerance = 0.1):
     valid = false;
   }
 
-  const lA = getLuminance(A);
-  const lB = getLuminance(B);
-  const lP = getLuminance(P);
-  const lQ = getLuminance(Q);
-  if (Math.abs(lP - lQ) <= Math.abs(lA - lB)) {
-    warnings.push('Metelli condition violated: |L_P - L_Q| should exceed |L_A - L_B|');
-  }
-  if (lP > lQ !== lA > lB) {
-    warnings.push('Metelli condition violated: lighter overlap should be over lighter background');
-  }
+  // Metelli's three conditions, from the single shared implementation. The
+  // identical-backgrounds case is already reported above in this function's own
+  // vocabulary, so its duplicate is dropped here.
+  const conditions = checkMetelliConditions(A, B, P, Q, alpha);
+  warnings.push(...conditions.warnings.filter((w) => !w.includes('(near) identical')));
 
   return { P, Q, t, alpha, valid: valid && warnings.length === 0, warnings };
 }

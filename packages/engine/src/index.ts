@@ -76,9 +76,10 @@ export {
 } from './visualMixture.js';
 
 export {
-  checkMetelliConditions,
   validateTransparency,
   getValiditySummary,
 } from './validation.js';
 
-export type { MetelliConditions } from './validation.js';
+export { checkMetelliConditions } from './metelliConditions.js';
+
+export type { MetelliConditions } from './metelliConditions.js';
