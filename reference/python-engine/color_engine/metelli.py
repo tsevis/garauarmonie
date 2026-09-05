@@ -152,6 +152,13 @@ def compute_forward(
     L_Q = get_luminance(Q)
     
     # Lightness ordering: |L_P - L_Q| should exceed |L_A - L_B|
+    #
+    # KNOWN BUG - kept as-is because this module is the frozen test oracle.
+    # Backwards, same as check_metelli_conditions in validation.py: a veil
+    # reduces contrast, so |L_P - L_Q| <= |L_A - L_B| is the *valid* case. Here P
+    # and Q are built from A, B and t just above, so this fires on every
+    # well-formed composition and makes validity_valid always False.
+    # Corrected in the TypeScript port: packages/engine/src/metelliConditions.ts.
     if abs(L_P - L_Q) <= abs(L_A - L_B):
         warnings.append("Lightness ordering condition may be violated")
     
@@ -255,6 +262,11 @@ def compute_inverse(
     L_Q = get_luminance(Q)
     
     # Metelli's lightness ordering condition
+    #
+    # KNOWN BUG - kept as-is because this module is the frozen test oracle.
+    # Backwards, same as in compute_forward above: a veil reduces contrast, so
+    # this rejects correct four-zone displays with a spurious warning.
+    # Corrected in the TypeScript port: packages/engine/src/metelliConditions.ts.
     if abs(L_P - L_Q) <= abs(L_A - L_B):
         warnings.append(
             "Metelli condition violated: |L_P - L_Q| should exceed |L_A - L_B| "

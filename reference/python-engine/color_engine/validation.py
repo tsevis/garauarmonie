@@ -59,6 +59,14 @@ def check_metelli_conditions(
     
     # Condition 1: Lightness ordering
     # The lightness difference between P and Q must exceed the difference between A and B
+    #
+    # KNOWN BUG - kept as-is because this module is the frozen test oracle.
+    # This is backwards. P = α·A + (1−α)·t and Q = α·B + (1−α)·t give
+    # P − Q = α·(A − B), so a veil can only ever *shrink* the gap: the correct
+    # condition is |L_P − L_Q| <= |L_A − L_B| (contrast reduction). As written it
+    # also contradicts condition 3 below, and since overall_valid requires both,
+    # no genuine transparency can validate here.
+    # Corrected in the TypeScript port: packages/engine/src/metelliConditions.ts.
     lightness_ordering = abs(L_P - L_Q) > abs(L_A - L_B)
     
     if not lightness_ordering:
