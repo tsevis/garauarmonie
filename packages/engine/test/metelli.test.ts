@@ -6,6 +6,8 @@ import {
   computeDesigner,
   suggestTransparencyCoefficient,
   suggestTransparentColor,
+  checkMetelliConditions,
+  getLuminance,
 } from '../src/index.js';
 import type { RGB } from '../src/index.js';
 
@@ -36,6 +38,67 @@ describe('Metelli forward/inverse', () => {
     const fwd = computeForward(A, B, t, 0);
     expect(rgbNear(fwd.P, t)).toBe(true);
     expect(rgbNear(fwd.Q, t)).toBe(true);
+  });
+
+  it('accepts a well-formed forward composition without warnings', () => {
+    // A veil always reduces contrast, so a forward result must never trip the
+    // contrast-reduction condition (the regression this replaced did exactly that).
+    const fwd = computeForward(A, B, t, 0.4);
+    expect(fwd.warnings).toEqual([]);
+    expect(fwd.valid).toBe(true);
+  });
+
+  it('warns in forward mode when the backgrounds are identical', () => {
+    const fwd = computeForward(A, A, t, 0.4);
+    expect(fwd.valid).toBe(false);
+    expect(fwd.warnings.join(' ')).toContain('identical');
+  });
+
+  it('accepts a genuine four-zone display without warnings', () => {
+    const fwd = computeForward(A, B, t, 0.4);
+    const inv = computeInverse(A, B, fwd.P, fwd.Q);
+    expect(inv.warnings).toEqual([]);
+    expect(inv.valid).toBe(true);
+  });
+
+  it('agrees with checkMetelliConditions on contrast reduction', () => {
+    const fwd = computeForward(A, B, t, 0.4);
+    const inv = computeInverse(A, B, fwd.P, fwd.Q);
+    const conditions = checkMetelliConditions(A, B, fwd.P, fwd.Q, inv.alpha);
+    expect(conditions.contrastReduction).toBe(true);
+    expect(conditions.topologyPreserved).toBe(true);
+    // The veil brings the overlaps closer together than the backgrounds are.
+    expect(Math.abs(getLuminance(fwd.P) - getLuminance(fwd.Q))).toBeLessThan(
+      Math.abs(getLuminance(A) - getLuminance(B)),
+    );
+    expect(inv.warnings).toEqual([]);
+  });
+
+  it('warns when the overlaps have more contrast than the backgrounds', () => {
+    // Hand-built, physically impossible display: overlaps further apart than A/B.
+    const nearA: RGB = { r: 130, g: 130, b: 130 };
+    const nearB: RGB = { r: 150, g: 150, b: 150 };
+    const farP: RGB = { r: 20, g: 20, b: 20 };
+    const farQ: RGB = { r: 240, g: 240, b: 240 };
+    const inv = computeInverse(nearA, nearB, farP, farQ);
+    expect(inv.valid).toBe(false);
+    expect(inv.warnings.join(' ')).toContain('Contrast reduction violated');
+  });
+
+  it('warns when the lighter overlap sits over the darker background', () => {
+    const darkA: RGB = { r: 40, g: 40, b: 40 };
+    const lightB: RGB = { r: 220, g: 220, b: 220 };
+    const fwd = computeForward(darkA, lightB, t, 0.4);
+    // Swap the overlaps: topology broken, contrast still reduced.
+    const inv = computeInverse(darkA, lightB, fwd.Q, fwd.P);
+    expect(inv.valid).toBe(false);
+    expect(inv.warnings.join(' ')).toContain('Topology violated');
+  });
+
+  it('warns when the display is opaque (no scission)', () => {
+    const inv = computeInverse(A, B, A, B); // P = A, Q = B → nothing is veiled
+    expect(inv.valid).toBe(false);
+    expect(inv.warnings.join(' ')).toContain('Scission not realizable');
   });
 
   it('warns when backgrounds are identical in inverse mode', () => {
