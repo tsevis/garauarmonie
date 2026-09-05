@@ -27,6 +27,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:engine
+      # The CLI is a thin client of the same engine, and its tests exercise the
+      # math the studio renders — so a failure here stops the deploy.
+      - run: npm run build:cli
+      - run: npm run test:cli
       - run: npm run build --workspace web
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
