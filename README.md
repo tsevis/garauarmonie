@@ -12,8 +12,9 @@ Italian of his book, *Le armonie del colore*.
 ![Garau Armonie — the Composer, sweeping a veil's transparency](docs/demo.gif)
 
 Everything runs on **one framework-agnostic TypeScript color engine**
-(`@garau/engine`). The web studio and a Photoshop plugin are both thin clients of
-the same math, so a color is analyzed identically wherever you meet it.
+(`@garau/engine`). The web studio, a Photoshop plugin and a command line are all
+thin clients of the same math, so a color is analyzed identically wherever you
+meet it.
 
 ---
 
@@ -85,6 +86,32 @@ the same data `apps/web`'s Gallery and Nino's own Augusto workspace draw on.
 Load it via the Adobe UXP Developer Tool (see
 [`apps/photoshop/README.md`](apps/photoshop/README.md)).
 
+### Command line
+
+```console
+$ garau compose "#3A6EA5" "#C8B560" "#B0452A" 0.55
+Display
+  A      #3A6EA5   rgb(58, 110, 165)     rB
+  B      #C8B560   rgb(200, 181, 96)     rY
+  t      #B0452A   rgb(176, 69, 42)      alpha 55%
+  P      #6F5C6E   rgb(111, 92, 110)     RB
+  Q      #BD8348   rgb(189, 131, 72)     YR
+
+Validity
+  Verdict               valid transparency
+  Transparency quality  32/100
+  Juxtaposition         Partial Inversion
+```
+
+`garau` is the third client of the same engine. Seven commands cover the
+studio's math — `compose` and `inverse` for the two Composer modes, `designer`
+for an alpha sweep, `validate` for the full condition report, `suggest` for veil
+candidates, `analyze` for a Garau reading of a colour or a pair, and `convert`
+for the colour spaces. Every one takes `--json`, and `compose`, `inverse` and
+`validate` exit non-zero when the display is not a valid transparency, so a
+figure can be checked in a build. See
+[`packages/cli/README.md`](packages/cli/README.md).
+
 Illustrator is scoped, not built — UXP has no public API for it as of this
 writing, only legacy CEP, a different toolchain Adobe is itself migrating
 away from. See [`apps/illustrator/README.md`](apps/illustrator/README.md).
@@ -102,7 +129,8 @@ Photoshop panel imports both packages directly.
 garauarmonie/
 ├── packages/
 │   ├── engine/         @garau/engine — the color engine (Metelli + Garau).
-│   └── swatches/        @garau/swatches — the generated Augusto swatch system.
+│   ├── swatches/        @garau/swatches — the generated Augusto swatch system.
+│   └── cli/             @garau/cli — the `garau` command line over the engine.
 ├── apps/
 │   ├── web/             The studio (Vite + React + Tailwind). Ships as a static site.
 │   ├── photoshop/        UXP plugin (vanilla TS + esbuild) — Composer + Library tabs.
@@ -132,7 +160,11 @@ repository — it is copyrighted; the in-app text is original paraphrase.)*
 npm install
 npm run build:engine   # compile the engine to dist/
 npm run test:engine    # 32 tests: round-trips, notation, validation, stacking
+npm run build:cli      # compile the `garau` command line
+npm run test:cli       # 50 tests: parsing, dispatch, every command
 npm run dev            # run the web studio (http://localhost:5180)
+
+npx garau --help       # the engine from a shell
 ```
 
 ## Provenance

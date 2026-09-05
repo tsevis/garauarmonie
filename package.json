@@ -2,14 +2,16 @@
   "name": "garauarmonie",
   "version": "0.1.0",
   "private": true,
-  "description": "Garau Armonie — a studio to teach and simulate Augusto Garau's color theory and Color Transparency. In memory of Prof. Augusto Garau (1923–2010).",
+  "description": "Garau Armonie \u2014 a studio to teach and simulate Augusto Garau's color theory and Color Transparency. In memory of Prof. Augusto Garau (1923\u20132010).",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
     "build:engine": "npm run build --workspace @garau/engine",
+    "build:cli": "npm run build --workspace @garau/cli",
     "test:engine": "npm run test --workspace @garau/engine",
+    "test:cli": "npm run test --workspace @garau/cli",
     "dev": "npm run dev --workspace web"
   },
   "license": "MIT"
