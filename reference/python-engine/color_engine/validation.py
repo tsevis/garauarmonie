@@ -5,10 +5,17 @@ Validation system for transparency configurations.
 Checks both Metelli's conditions (from perceptual transparency research)
 and Garau's 10 chromatic conditions (from his visual-mixture theory).
 
-Metelli Conditions:
+Metelli Conditions (as this module implements them - two are known to be wrong;
+see check_metelli_conditions below, and the corrected TypeScript port in
+packages/engine/src/metelliConditions.ts):
 1. Lightness ordering: |L_P - L_Q| > |L_A - L_B|
+   KNOWN BUG - backwards. A veil reduces contrast, so |L_P - L_Q| <= |L_A - L_B|
+   is the valid case. As written this also contradicts condition 3, and since
+   overall_valid requires both, no genuine transparency can validate.
 2. Topology preservation: lighter overlap over lighter background
 3. Contrast reduction: figure's internal contrast < background's
+   KNOWN BUG in the factor - the code compares against |L_A - L_B| * (1 - alpha),
+   but alpha is the background weight here, so the factor should be alpha.
 
 Garau's 10 Conditions:
 1. Four regions - all four zones must be defined
@@ -88,7 +95,18 @@ def check_metelli_conditions(
     # The figure's internal contrast must be less than the background's
     # Figure contrast = |L_P - L_Q|
     # Background contrast = |L_A - L_B|
-    # For transparency: figure contrast should be reduced by factor of (1 - alpha)
+    # For transparency: figure contrast should be reduced by factor of alpha
+    #
+    # KNOWN BUG - kept as-is because this module is the frozen test oracle.
+    # The factor below is the complement of the right one. _compute_overlap_channel
+    # (metelli.py:69) builds P = alpha*A + (1-alpha)*t, so alpha is the *background*
+    # weight and P - Q = alpha*(A - B): the expected figure contrast is
+    # |L_A - L_B| * alpha, not * (1 - alpha). The two agree only at alpha = 0.5 and
+    # diverge in both directions away from it - at alpha = 0.9 this demands a figure
+    # contrast nine times smaller than the model actually produces. The warning
+    # message below repeats the wrong factor.
+    # The TypeScript port sidesteps this entirely: metelliConditions.ts compares
+    # figContrast <= bgContrast with no alpha factor at all.
     expected_figure_contrast = abs(L_A - L_B) * (1 - alpha)
     actual_figure_contrast = abs(L_P - L_Q)
     
