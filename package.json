@@ -11,6 +11,7 @@
     "build:engine": "npm run build --workspace @garau/engine",
     "build:cli": "npm run build --workspace @garau/cli",
     "test:engine": "npm run test --workspace @garau/engine",
+    "test:swatches": "npm run test --workspace @garau/swatches",
     "test:cli": "npm run test --workspace @garau/cli",
     "dev": "npm run dev --workspace web"
   },
