@@ -29,14 +29,18 @@ layer(base);
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+    /* v3's gray-200 exactly; v4's oklch gray-200 is a slightly different grey. */
+    border-color: #e5e7eb;
   }
 }
 
-@utility swatch {
+/* A component, not an @utility: utilities such as `flex` must still win. */
+@layer components {
   /* Color swatches: no rounded corners, minimal border — borders influence
      color perception, as Garau himself would insist. */
-  @apply block;
+  .swatch {
+    display: block;
+  }
 }
 
 @layer base {
@@ -55,6 +59,8 @@ layer(base);
 
 /* Range input styling for the alpha slider. */
 input[type='range'] {
+  /* v4's space-y puts the gap below, which drops an inline slider in its line box. */
+  vertical-align: middle;
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
