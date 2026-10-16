@@ -38,7 +38,7 @@ function Button({ onClick, children }: { onClick: () => void; children: React.Re
     <button
       type="button"
       onClick={onClick}
-      className="rounded-sm border border-line bg-panel px-2.5 py-1 text-xs font-medium text-ink transition-colors hover:border-accent hover:text-accent"
+      className="rounded-xs border border-line bg-panel px-2.5 py-1 text-xs font-medium text-ink transition-colors hover:border-accent hover:text-accent"
     >
       {children}
     </button>
@@ -132,7 +132,7 @@ export default function Composer({ loaded, onSave }: Props) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
       {/* LEFT — inputs */}
       <section className="space-y-5">
-        <div className="flex overflow-hidden rounded-sm border border-line">
+        <div className="flex overflow-hidden rounded-xs border border-line">
           {(['forward', 'inverse'] as Mode[]).map((m) => (
             <button
               key={m}

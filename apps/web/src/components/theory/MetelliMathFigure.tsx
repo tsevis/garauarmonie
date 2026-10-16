@@ -9,7 +9,7 @@ import { rgbToCss } from '../../lib/color';
 function Chip({ c, label }: { c: RGB; label: string }) {
   return (
     <span className="inline-flex items-center gap-1 align-middle">
-      <span className="inline-block h-3.5 w-3.5 rounded-sm" style={{ backgroundColor: rgbToCss(c) }} />
+      <span className="inline-block h-3.5 w-3.5 rounded-xs" style={{ backgroundColor: rgbToCss(c) }} />
       <span className="font-mono text-sm">{label}</span>
     </span>
   );

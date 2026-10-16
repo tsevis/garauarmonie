@@ -1,23 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap')
+layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --color-paper: #f5f3f0;
+  --color-panel: #fbfaf8;
+  --color-ink: #1f1d1a;
+  --color-muted: #6b6660;
+  --color-line: #e4e0da;
+  --color-accent: #8a5a44;
+
+  --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility swatch {
+  /* Color swatches: no rounded corners, minimal border — borders influence
+     color perception, as Garau himself would insist. */
+  @apply block;
+}
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
   }
+  /* Tailwind 4 dropped the pointer cursor on buttons; keep the v3 behaviour. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
   body {
     @apply bg-paper text-ink font-sans;
-  }
-}
-
-@layer components {
-  /* Color swatches: no rounded corners, minimal border — borders influence
-     color perception, as Garau himself would insist. */
-  .swatch {
-    @apply block;
   }
 }
 
@@ -27,7 +59,7 @@ input[type='range'] {
   appearance: none;
   height: 4px;
   border-radius: 2px;
-  background: theme('colors.line');
+  background: var(--color-line);
   outline: none;
 }
 input[type='range']::-webkit-slider-thumb {
@@ -36,16 +68,16 @@ input[type='range']::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: theme('colors.ink');
+  background: var(--color-ink);
   cursor: pointer;
-  border: 2px solid theme('colors.panel');
+  border: 2px solid var(--color-panel);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 input[type='range']::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: theme('colors.ink');
+  background: var(--color-ink);
   cursor: pointer;
-  border: 2px solid theme('colors.panel');
+  border: 2px solid var(--color-panel);
 }

@@ -36,7 +36,7 @@ export default function ColorField({ label, sublabel, value, onChange, showMixtu
         </label>
         {mixture && (
           <span
-            className="font-mono text-xs px-1.5 py-0.5 rounded-sm"
+            className="font-mono text-xs px-1.5 py-0.5 rounded-xs"
             style={{ backgroundColor: rgbToCss(value), color: contrastText(value) }}
             title={`Dominant ${mixture.dominant}${mixture.subordinate ? `, subordinate ${mixture.subordinate}` : ' (pure)'}`}
           >
@@ -69,7 +69,7 @@ export default function ColorField({ label, sublabel, value, onChange, showMixtu
               if (/^#?[0-9a-fA-F]{6}$/.test(v) || /^#?[0-9a-fA-F]{3}$/.test(v)) onChange(hexToRgb(v));
             }}
             spellCheck={false}
-            className="w-full rounded-sm border border-line bg-panel px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-none"
+            className="w-full rounded-xs border border-line bg-panel px-2 py-1 font-mono text-sm text-ink focus:border-accent focus:outline-hidden"
           />
           <div className="grid grid-cols-3 gap-1.5">
             {(['r', 'g', 'b'] as const).map((ch) => (
@@ -81,7 +81,7 @@ export default function ColorField({ label, sublabel, value, onChange, showMixtu
                   max={255}
                   value={value[ch]}
                   onChange={(e) => setChannel(ch, e.target.value)}
-                  className="w-full rounded-sm border border-line bg-panel px-1 py-0.5 font-mono text-xs text-ink focus:border-accent focus:outline-none"
+                  className="w-full rounded-xs border border-line bg-panel px-1 py-0.5 font-mono text-xs text-ink focus:border-accent focus:outline-hidden"
                 />
               </div>
             ))}

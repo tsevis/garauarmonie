@@ -33,7 +33,7 @@ function PresetCard({ preset, onLoad, onRemove }: CardProps) {
         className="block w-full text-left"
         title="Load into the Composer"
       >
-        <div className="aspect-[16/11] overflow-hidden bg-line">
+        <div className="aspect-16/11 overflow-hidden bg-line">
           <PresetThumb {...presetToConfig(preset)} />
         </div>
         <div className="space-y-1.5 p-3">
@@ -89,7 +89,7 @@ export default function Gallery({ onLoad, saved, onRemove }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap overflow-hidden rounded-sm border border-line">
+        <div className="flex flex-wrap overflow-hidden rounded-xs border border-line">
           {VIEWS.map((v) => (
             <button
               key={v.id}
@@ -154,7 +154,7 @@ export default function Gallery({ onLoad, saved, onRemove }: Props) {
         (saved.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted">
             No saved displays yet. In the Composer, build a transparency and press
-            <span className="mx-1 rounded-sm border border-line bg-panel px-1.5 py-0.5 font-mono text-xs">Save</span>
+            <span className="mx-1 rounded-xs border border-line bg-panel px-1.5 py-0.5 font-mono text-xs">Save</span>
             to keep it here.
           </div>
         ) : (
