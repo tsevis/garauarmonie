@@ -37,7 +37,7 @@ export default function Analyzer() {
     <div className="space-y-6">
       {/* Mode toggle + intro */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex overflow-hidden rounded-sm border border-line">
+        <div className="flex overflow-hidden rounded-xs border border-line">
           {(['single', 'pair'] as Mode[]).map((m) => (
             <button
               key={m}
@@ -135,7 +135,7 @@ export default function Analyzer() {
               <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Analysis</h3>
               <p className="text-sm leading-relaxed text-muted">{analysis.description}</p>
               {analysis.recommendedCorrection && (
-                <p className="mt-3 rounded-sm bg-paper p-3 text-sm leading-relaxed text-ink">
+                <p className="mt-3 rounded-xs bg-paper p-3 text-sm leading-relaxed text-ink">
                   <span className="font-semibold">Correction · </span>
                   {analysis.recommendedCorrection}
                 </p>

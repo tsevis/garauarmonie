@@ -25,7 +25,7 @@ export default function JuxtapositionsFigure() {
         </div>
         <p className="text-sm leading-relaxed text-muted">{analysis.description}</p>
         {analysis.recommendedCorrection && (
-          <p className="rounded-sm bg-paper p-3 text-sm leading-relaxed text-ink">
+          <p className="rounded-xs bg-paper p-3 text-sm leading-relaxed text-ink">
             <span className="font-semibold">Correction · </span>
             {analysis.recommendedCorrection}
           </p>

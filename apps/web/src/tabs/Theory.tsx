@@ -85,7 +85,7 @@ export default function Theory() {
               <button
                 type="button"
                 onClick={() => setActiveId(c.id)}
-                className={`flex w-full items-baseline gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors ${
+                className={`flex w-full items-baseline gap-2 rounded-xs px-2 py-1.5 text-left text-sm transition-colors ${
                   c.id === activeId ? 'bg-ink text-paper' : 'text-muted hover:bg-line/60 hover:text-ink'
                 }`}
               >

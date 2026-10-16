@@ -93,7 +93,7 @@ export default function Stacker({ onLoad }: Props) {
               type="button"
               onClick={addLayer}
               disabled={layers.length >= MAX_LAYERS}
-              className="rounded-sm border border-line bg-panel px-2 py-1 text-xs font-medium text-ink hover:border-accent hover:text-accent disabled:opacity-40"
+              className="rounded-xs border border-line bg-panel px-2 py-1 text-xs font-medium text-ink hover:border-accent hover:text-accent disabled:opacity-40"
             >
               + Add veil
             </button>
@@ -133,7 +133,7 @@ export default function Stacker({ onLoad }: Props) {
                       const v = e.target.value.trim();
                       if (/^#?[0-9a-fA-F]{6}$/.test(v)) updateLayer(layer.id, { t: hexToRgb(v) });
                     }}
-                    className="w-full rounded-sm border border-line bg-panel px-2 py-1 font-mono text-xs text-ink focus:border-accent focus:outline-none"
+                    className="w-full rounded-xs border border-line bg-panel px-2 py-1 font-mono text-xs text-ink focus:border-accent focus:outline-hidden"
                   />
                 </div>
                 <div className="mt-2 flex items-center gap-2">
@@ -210,7 +210,7 @@ export default function Stacker({ onLoad }: Props) {
               </div>
               <div className="mt-2 flex items-center gap-1">
                 {[prevA, prevB, newA, newB].map((c, k) => (
-                  <span key={k} className="h-6 flex-1 rounded-sm" style={{ backgroundColor: rgbToCss(c) }} title={rgbToHex(c)} />
+                  <span key={k} className="h-6 flex-1 rounded-xs" style={{ backgroundColor: rgbToCss(c) }} title={rgbToHex(c)} />
                 ))}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">

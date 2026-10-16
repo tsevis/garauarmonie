@@ -68,7 +68,7 @@ export default function MixtureReadout({ color, onPick }: { color: RGB; onPick?:
           <span>Dominant · {PRIMARY_NAME[m.dominant]}</span>
           {m.subordinate && <span>Subordinate · {PRIMARY_NAME[m.subordinate]}</span>}
         </div>
-        <div className="flex h-6 overflow-hidden rounded-sm">
+        <div className="flex h-6 overflow-hidden rounded-xs">
           <div className="flex items-center justify-center font-mono text-[11px] text-white" style={{ width: `${domShare}%`, backgroundColor: '#3A3733' }}>
             {domShare}%
           </div>

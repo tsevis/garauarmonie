@@ -48,7 +48,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-line bg-panel/70 backdrop-blur">
+      <header className="border-b border-line bg-panel/70 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-ink">Garau Armonie</h1>
@@ -62,7 +62,7 @@ export default function App() {
                 key={tb.id}
                 type="button"
                 onClick={() => setTab(tb.id)}
-                className={`rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-xs px-3 py-1.5 text-sm font-medium transition-colors ${
                   tab === tb.id ? 'bg-ink text-paper' : 'text-muted hover:bg-line/60 hover:text-ink'
                 }`}
               >
