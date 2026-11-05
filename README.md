@@ -26,10 +26,14 @@ meet it.
 ![The Composer](docs/screenshots/composer.png)
 
 Set two backgrounds (**A**, **B**), a veil color (**t**) and its transparency
-(**α**); the overlaps **P** and **Q** are computed by Metelli's equations. Every
+(**α**); the overlaps **P** and **Q** are computed by Metelli's equations. **α is
+Metelli's photometric α in linear light** — the share of the ground that shows
+through (1 clear, 0 an opaque veil), averaged on linearised sRGB as Talbot's law
+and the episcotister require, and converted back to sRGB only for display. Every
 zone is read live for validity (Metelli's three lightness conditions + Garau's
-chromatic conditions), a transparency-quality score, and the juxtaposition type
-with its concord/discord harmony. **Inverse** mode recovers *t* and *α* from an
+chromatic conditions 1–10), Garau's two readouts — the **degree of transparency**
+(condition 8) and the **balance** of the veil (condition 6) — and, when both
+overlaps are tertiaries, the juxtaposition type with its concord/discord harmony. **Inverse** mode recovers *t* and *α* from an
 existing display, and any figure exports as PNG or SVG. *(The hero above shows the
 α slider sweeping live.)*
 
@@ -38,9 +42,10 @@ existing display, and any figure exports as PNG or SVG. *(The hero above shows t
 ![The Stacker](docs/screenshots/stacker.png)
 
 Stack veils into ordered depth planes. Each plane is composited over the
-accumulated result beneath it and validated as a transparency against it. Because
-a translucent veil drawn at opacity `1−α` composites exactly like Metelli's
-average, **what you see equals what the engine computes**. The default walks
+accumulated result beneath it and validated as a transparency against it. Each
+plane is drawn in the colours the engine computes in linear light (a browser's
+translucent fill would blend gamma-encoded values instead), so **what you see
+equals what the engine computes**. The default walks
 Garau's sequence — **Complete Inversion → Shared Subordinate → Shared Dominant** —
 with each plane a valid transparency. Open any plane in the Composer.
 
@@ -92,16 +97,17 @@ Load it via the Adobe UXP Developer Tool (see
 ```console
 $ garau compose "#3A6EA5" "#C8B560" "#B0452A" 0.55
 Display
-  A      #3A6EA5   rgb(58, 110, 165)     rB
+  A      #3A6EA5   rgb(58, 110, 165)     B
   B      #C8B560   rgb(200, 181, 96)     rY
   t      #B0452A   rgb(176, 69, 42)      alpha 55%
-  P      #6F5C6E   rgb(111, 92, 110)     RB
-  Q      #BD8348   rgb(189, 131, 72)     YR
+  P      #815E80   rgb(129, 94, 128)     BR
+  Q      #BE904D   rgb(190, 144, 77)     rY
 
 Validity
-  Verdict               valid transparency
-  Transparency quality  32/100
-  Juxtaposition         Partial Inversion
+  Verdict                 valid transparency
+  Degree of transparency  Intermediate
+  Balance                 not applicable
+  Juxtaposition           Balanced secondary
 ```
 
 `garau` is the third client of the same engine. Seven commands cover the
@@ -150,19 +156,22 @@ repository — it is copyrighted; the in-app text is original paraphrase.)*
 
 `@garau/engine` implements, per RGB channel:
 
-- **Metelli's equations** — `P = α·A + (1−α)·t`, `Q = α·B + (1−α)·t`; forward,
-  inverse, designer, and single-veil `compositeVeil` (for stacking).
+- **Metelli's equations** — `P = α·A + (1−α)·t`, `Q = α·B + (1−α)·t`, in linear
+  light (linearised sRGB, Metelli's photometric α); forward, inverse (channel α
+  must agree within Da Pos's ±0.05), designer, and single-veil `compositeVeil`.
 - **Garau's visual-mixture system** — dominant/subordinate decomposition, notation,
-  splittability, Arnheim's four juxtaposition types, and the concord/discord
-  harmony grouping.
-- **Validation** — Metelli's three conditions + Garau's chromatic conditions.
+  splittability on the RYB disk; Arnheim's four juxtaposition types (between two
+  tertiaries only) and the concord/discord harmony grouping.
+- **Validation** — Metelli's three conditions + Garau's chromatic conditions,
+  including veil = common colour (4), grounds = divergent colours (5), the ground
+  assimilating an unbalanced excess (7), degree (8) and design-from-the-ground (9–10).
 
 ```bash
 npm install
 npm run build:engine   # compile the engine to dist/
-npm run test:engine    # 32 tests: round-trips, notation, validation, stacking
+npm run test:engine    # round-trips, notation, validation, stacking
 npm run build:cli      # compile the `garau` command line
-npm run test:cli       # 50 tests: parsing, dispatch, every command
+npm run test:cli       # parsing, dispatch, every command
 npm run dev            # run the web studio (http://localhost:5180)
 
 npx garau --help       # the engine from a shell

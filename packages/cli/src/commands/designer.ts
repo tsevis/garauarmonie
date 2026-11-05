@@ -6,7 +6,7 @@
 import { computeDesigner, validateTransparency } from '@garau/engine';
 import { expectPositionals } from '../flags.js';
 import { parseColor, parseCount, parseRange } from '../parse.js';
-import { chip, colorInfo, heading, percent, score, swatchWithNotation } from '../format.js';
+import { chip, colorInfo, heading, percent, swatchWithNotation } from '../format.js';
 import type { Command } from '../types.js';
 
 const USAGE = 'garau designer <A> <B> <t>';
@@ -47,8 +47,9 @@ export const designerCommand: Command = {
           P: colorInfo(step.P),
           Q: colorInfo(step.Q),
           valid: report.overallValid,
-          quality: report.transparencyQuality,
-          juxtaposition: report.juxtapositionType,
+          degree: report.degreeOfTransparency,
+          balance: report.balance?.score ?? null,
+          juxtaposition: report.juxtapositionType ?? report.pairRelation,
         },
       };
     });
@@ -56,7 +57,7 @@ export const designerCommand: Command = {
     const rows = samples.map(({ step, summary }) => {
       const zones = `${chip(step.P, ctx.color)}${summary.P.hex}  ${chip(step.Q, ctx.color)}${summary.Q.hex}`;
       const verdict = summary.valid ? 'valid' : 'invalid';
-      return `  ${percent(summary.alpha).padStart(4)}  ${zones}  ${score(summary.quality).padStart(7)}  ${verdict}`;
+      return `  ${percent(summary.alpha).padStart(4)}  ${zones}  ${(summary.degree ?? '-').padEnd(16)}  ${verdict}`;
     });
 
     return {
@@ -72,7 +73,7 @@ export const designerCommand: Command = {
         swatchWithNotation('A', A, ctx.color),
         swatchWithNotation('B', B, ctx.color),
         swatchWithNotation('t', t, ctx.color),
-        heading('alpha   P          Q          quality', ctx.color),
+        heading('alpha   P          Q          degree', ctx.color),
         ...rows,
       ],
     };

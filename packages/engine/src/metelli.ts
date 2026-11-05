@@ -1,39 +1,62 @@
 /**
- * Metelli's equations for perceptual transparency, extended per-channel to RGB
+ * Metelli's equations for perceptual transparency, extended per channel to RGB
  * (following Da Pos, refined by Garau's visual-mixture thesis).
  *
  *   P_c = α·A_c + (1−α)·t_c     (overlap of figure over background A)
  *   Q_c = α·B_c + (1−α)·t_c     (overlap of figure over background B)
  *
+ * The model runs in linear light (linearised sRGB). α is Metelli's photometric
+ * α — the open fraction of his episcotister, which by Talbot's law averages
+ * light, not gamma-encoded values — so a 50% black veil over white gives
+ * linear luminance 0.5. Da Pos likewise worked in tristimulus values. Colours
+ * are converted back to sRGB only for display.
+ *
  * Ported from `reference/python-engine/color_engine/metelli.py`.
  */
 
 import type { RGB, LCH, MetelliResult } from './types.js';
-import {
-  rgbToNormalized,
-  normalizedToRgb,
-  rgbToLch,
-  lchToRgb,
-} from './conversions.js';
+import { rgbToLinear, linearToRgb, rgbToLch, lchToRgb } from './conversions.js';
 import { checkMetelliConditions } from './metelliConditions.js';
 
 const clamp = (v: number, min = 0, max = 1): number => Math.max(min, Math.min(max, v));
 
-const channels = (c: RGB): [number, number, number] => {
-  const n = rgbToNormalized(c);
+/** Da Pos: α must agree across the three channels within ±0.05. */
+export const DA_POS_ALPHA_TOLERANCE = 0.05;
+/** Below this α the veil is nearly opaque. */
+const LOW_ALPHA = 0.05;
+/** Above this α the veil barely shows. */
+const HIGH_ALPHA = 0.95;
+/** Background channels closer than this give no usable α estimate. */
+const DEGENERATE = 1e-10;
+/** α reported when the backgrounds are identical and α cannot be measured. */
+const FALLBACK_ALPHA = 0.5;
+/** Rec. 709 luminance weights of the linear R, G, B channels. */
+const LUMINANCE_WEIGHTS = [0.2126, 0.7152, 0.0722] as const;
+/** A channel whose backgrounds differ less than this does not vote on α. */
+const MIN_CHANNEL_DIFF = 0.01;
+
+type Triple = readonly [number, number, number];
+
+const channels = (c: RGB): Triple => {
+  const n = rgbToLinear(c);
   return [n.r, n.g, n.b];
 };
 
-/** α for a single channel: α = (P − Q) / (A − B). Null if A ≈ B. */
+const fromChannels = ([r, g, b]: Triple): RGB => linearToRgb({ r, g, b });
+
+/** Build a channel triple from a per-channel function. */
+const perChannel3 = (f: (i: 0 | 1 | 2) => number): Triple => [f(0), f(1), f(2)];
+
+/** α for a single channel: α = (P − Q) / (A − B), unclamped. Null if A ≈ B. */
 function alphaChannel(P: number, Q: number, A: number, B: number): number | null {
   const denom = A - B;
-  if (Math.abs(denom) < 1e-10) return null;
-  return clamp((P - Q) / denom);
+  if (Math.abs(denom) < DEGENERATE) return null;
+  return (P - Q) / denom;
 }
 
 /** t for a single channel: t_c = (P_c − α·A_c) / (1 − α). */
 function tChannel(P: number, A: number, alpha: number): number {
-  if (Math.abs(1 - alpha) < 1e-10) return P; // fully opaque → t irrelevant
+  if (Math.abs(1 - alpha) < DEGENERATE) return P; // fully opaque → t irrelevant
   return clamp((P - alpha * A) / (1 - alpha));
 }
 
@@ -42,21 +65,29 @@ function overlapChannel(A: number, t: number, alpha: number): number {
   return clamp(alpha * A + (1 - alpha) * t);
 }
 
+/** One overlap, in linear light: α·base + (1−α)·t per channel. */
+function overlap(base: RGB, t: RGB, alpha: number): RGB {
+  const b = channels(base);
+  const v = channels(t);
+  return fromChannels(perChannel3((i) => overlapChannel(b[i], v[i], alpha)));
+}
+
 /**
  * Composite a transparent veil (color t, coefficient α) over a single base
- * color, per channel: result = α·base + (1−α)·t. This is one overlap of the
- * Metelli model, and — because it runs in sRGB — it matches the "source-over"
- * alpha compositing a renderer performs for a veil drawn at opacity (1−α).
- * Stacking veils is repeated application of this operation.
+ * color: one overlap of the Metelli model, in linear light. Stacking veils is
+ * repeated application of this operation. (A renderer's "source-over" at
+ * opacity 1−α blends gamma-encoded values instead, so draw the returned colour
+ * rather than a translucent veil.)
  */
 export function compositeVeil(base: RGB, t: RGB, alpha: number): RGB {
-  const [br, bg, bb] = channels(base);
-  const [tr, tg, tb] = channels(t);
-  return normalizedToRgb({
-    r: overlapChannel(br, tr, alpha),
-    g: overlapChannel(bg, tg, alpha),
-    b: overlapChannel(bb, tb, alpha),
-  });
+  return overlap(base, t, alpha);
+}
+
+function alphaRangeWarnings(alpha: number): string[] {
+  if (alpha < 0 || alpha > 1) return [`Alpha ${alpha} is outside valid range [0, 1]`];
+  if (alpha < LOW_ALPHA) return ['Very low alpha — the veil is nearly opaque'];
+  if (alpha > HIGH_ALPHA) return ['Very high alpha — the veil is barely visible'];
+  return [];
 }
 
 /**
@@ -64,95 +95,65 @@ export function compositeVeil(base: RGB, t: RGB, alpha: number): RGB {
  * Given backgrounds A, B, a transparent color t, and α, compute overlaps P, Q.
  */
 export function computeForward(A: RGB, B: RGB, t: RGB, alpha: number): MetelliResult {
-  const [ar, ag, ab] = channels(A);
-  const [br, bg, bb] = channels(B);
-  const [tr, tg, tb] = channels(t);
-
-  const P = normalizedToRgb({
-    r: overlapChannel(ar, tr, alpha),
-    g: overlapChannel(ag, tg, alpha),
-    b: overlapChannel(ab, tb, alpha),
-  });
-  const Q = normalizedToRgb({
-    r: overlapChannel(br, tr, alpha),
-    g: overlapChannel(bg, tg, alpha),
-    b: overlapChannel(bb, tb, alpha),
-  });
-
-  const warnings: string[] = [];
-  let valid = true;
-
-  if (alpha < 0 || alpha > 1) {
-    warnings.push(`Alpha ${alpha} is outside valid range [0, 1]`);
-    valid = false;
-  }
-  if (alpha < 0.05) warnings.push('Very low alpha — transparency effect may be imperceptible');
-  else if (alpha > 0.95) warnings.push('Very high alpha — figure may appear opaque');
+  const P = overlap(A, t, alpha);
+  const Q = overlap(B, t, alpha);
+  const valid = alpha >= 0 && alpha <= 1;
 
   // Metelli's three conditions, from the single shared implementation. α is an
-  // input here and already covered by the two range warnings above, so the
-  // scission warning would only restate them.
+  // input here and already covered by the range warnings, so the scission
+  // warning would only restate them.
   const conditions = checkMetelliConditions(A, B, P, Q, alpha);
-  warnings.push(...conditions.warnings.filter((w) => !w.startsWith('Scission not realizable')));
-
+  const warnings = [
+    ...alphaRangeWarnings(alpha),
+    ...conditions.warnings.filter((w) => !w.startsWith('Scission not realizable')),
+  ];
   return { P, Q, t, alpha, valid: valid && warnings.length === 0, warnings };
+}
+
+/** The mean channel α and the warnings its spread and range call for. */
+function readAlpha(alphas: readonly number[], tolerance: number): { alpha: number; warnings: string[] } {
+  if (alphas.length === 0) {
+    return { alpha: FALLBACK_ALPHA, warnings: ['Cannot compute alpha: backgrounds are identical'] };
+  }
+  const alpha = alphas.reduce((s, a) => s + a, 0) / alphas.length;
+  const spread = Math.max(...alphas.map((a) => Math.abs(a - alpha)));
+  const warnings = [
+    ...(spread > tolerance
+      ? [
+          `Alpha inconsistency across channels (largest deviation ${spread.toFixed(3)}, ` +
+            `tolerance ±${tolerance}). This may not be a valid balanced transparency.`,
+        ]
+      : []),
+    ...(alpha < 0 || alpha > 1 ? [`Computed alpha ${alpha.toFixed(3)} is outside valid range [0, 1]`] : []),
+  ];
+  return { alpha, warnings };
 }
 
 /**
  * Inverse mode — analyze an existing four-zone display.
- * Given backgrounds A, B and overlaps P, Q, recover t and α.
+ * Given backgrounds A, B and overlaps P, Q, recover t and α. Channel α are
+ * averaged unclamped, so an impossible display reports α outside [0, 1].
  */
-export function computeInverse(A: RGB, B: RGB, P: RGB, Q: RGB, tolerance = 0.1): MetelliResult {
-  const [ar, ag, ab] = channels(A);
-  const [br, bg, bb] = channels(B);
-  const [pr, pg, pb] = channels(P);
-  const [qr, qg, qb] = channels(Q);
-
-  const alphas = [
-    alphaChannel(pr, qr, ar, br),
-    alphaChannel(pg, qg, ag, bg),
-    alphaChannel(pb, qb, ab, bb),
-  ].filter((a): a is number => a !== null);
-
-  const warnings: string[] = [];
-  let valid = true;
-  let alpha: number;
-
-  if (alphas.length === 0) {
-    warnings.push('Cannot compute alpha: backgrounds are identical');
-    alpha = 0.5;
-    valid = false;
-  } else {
-    const mean = alphas.reduce((s, a) => s + a, 0) / alphas.length;
-    alpha = mean;
-    const variance = alphas.reduce((s, a) => s + (a - mean) ** 2, 0) / alphas.length;
-    if (variance > tolerance ** 2) {
-      warnings.push(
-        `Alpha inconsistency across channels (variance=${variance.toFixed(4)}). ` +
-          'This may not be a valid balanced transparency.',
-      );
-      valid = false;
-    }
-  }
-
-  const t = normalizedToRgb({
-    r: tChannel(pr, ar, alpha),
-    g: tChannel(pg, ag, alpha),
-    b: tChannel(pb, ab, alpha),
-  });
-
-  if (alpha < 0 || alpha > 1) {
-    warnings.push(`Computed alpha ${alpha.toFixed(3)} is outside valid range [0, 1]`);
-    valid = false;
-  }
+export function computeInverse(
+  A: RGB,
+  B: RGB,
+  P: RGB,
+  Q: RGB,
+  tolerance = DA_POS_ALPHA_TOLERANCE,
+): MetelliResult {
+  const [a, b, p, q] = [channels(A), channels(B), channels(P), channels(Q)];
+  const alphas = perChannel3((i) => alphaChannel(p[i], q[i], a[i], b[i]) ?? NaN).filter(
+    (v) => !Number.isNaN(v),
+  );
+  const read = readAlpha(alphas, tolerance);
+  const t = fromChannels(perChannel3((i) => tChannel(p[i], a[i], read.alpha)));
 
   // Metelli's three conditions, from the single shared implementation. The
   // identical-backgrounds case is already reported above in this function's own
   // vocabulary, so its duplicate is dropped here.
-  const conditions = checkMetelliConditions(A, B, P, Q, alpha);
-  warnings.push(...conditions.warnings.filter((w) => !w.includes('(near) identical')));
-
-  return { P, Q, t, alpha, valid: valid && warnings.length === 0, warnings };
+  const conditions = checkMetelliConditions(A, B, P, Q, read.alpha);
+  const warnings = [...read.warnings, ...conditions.warnings.filter((w) => !w.includes('(near) identical'))];
+  return { P, Q, t, alpha: read.alpha, valid: alphas.length > 0 && warnings.length === 0, warnings };
 }
 
 /**
@@ -188,12 +189,10 @@ export function suggestTransparencyCoefficient(A: RGB, B: RGB, P: RGB, Q: RGB): 
   const [br, bg, bb] = channels(B);
   const [pr, pg, pb] = channels(P);
   const [qr, qg, qb] = channels(Q);
-  const weights = [0.2126, 0.7152, 0.0722];
-
   const perChannel: Array<[number, number, number, number, number]> = [
-    [pr, qr, ar, br, weights[0]!],
-    [pg, qg, ag, bg, weights[1]!],
-    [pb, qb, ab, bb, weights[2]!],
+    [pr, qr, ar, br, LUMINANCE_WEIGHTS[0]],
+    [pg, qg, ag, bg, LUMINANCE_WEIGHTS[1]],
+    [pb, qb, ab, bb, LUMINANCE_WEIGHTS[2]],
   ];
 
   let weightedSum = 0;
@@ -201,13 +200,13 @@ export function suggestTransparencyCoefficient(A: RGB, B: RGB, P: RGB, Q: RGB): 
   for (const [p, q, a, b, w] of perChannel) {
     const alpha = alphaChannel(p, q, a, b);
     const channelDiff = Math.abs(a - b);
-    if (alpha !== null && channelDiff > 0.01) {
+    if (alpha !== null && channelDiff > MIN_CHANNEL_DIFF) {
       const weight = w * channelDiff;
       weightedSum += alpha * weight;
       totalWeight += weight;
     }
   }
-  return totalWeight === 0 ? 0.5 : clamp(weightedSum / totalWeight);
+  return totalWeight === 0 ? FALLBACK_ALPHA : clamp(weightedSum / totalWeight);
 }
 
 /**

@@ -18,13 +18,17 @@ export default function ValidityDashboard({ report }: { report: ValidationReport
     { label: 'Contrast reduction', state: report.contrastReduction, hint: 'Overlap contrast is lower than background contrast — the mark of a veil' },
   ];
   const garau: Row[] = [
-    { label: 'Visual mixture · P', state: report.visualMixtureP, hint: 'P reads as a mixture, not a pure primary' },
-    { label: 'Visual mixture · Q', state: report.visualMixtureQ, hint: 'Q reads as a mixture, not a pure primary' },
-    { label: 'Unbalanced preference', state: report.unbalancedPreference, hint: 'Unbalanced mixtures split more readily' },
-    { label: 'Common color', state: report.commonColorExists, hint: 'P and Q share a component — this becomes t' },
-    { label: 'Divergent colors', state: report.divergentColorsExist, hint: 'Non-shared components become the backgrounds' },
-    { label: 'Balanced transparency', state: report.balancedTransparency, hint: 't present equally in P and Q' },
-    { label: 'Alpha consistency', state: report.alphaConsistency, hint: 'α agrees across the R, G, B channels' },
+    { label: 'Visual mixture · P', state: report.visualMixtureP, hint: '2 · P reads as a chromatic mixture, not a pure primary or a grey' },
+    { label: 'Visual mixture · Q', state: report.visualMixtureQ, hint: '2 · Q reads as a chromatic mixture, not a pure primary or a grey' },
+    { label: 'Unbalanced preference', state: report.unbalancedPreference, hint: '3 · Unbalanced mixtures (tertiaries) split more readily than secondaries' },
+    { label: 'Common color', state: report.commonColorExists, hint: 'P and Q share an RYB component' },
+    { label: 'Veil = common color', state: report.veilIsCommonColor, hint: '4 · The colour P and Q share is the veil’s colour (grey: no veil colour, not applicable)' },
+    { label: 'Divergent colors', state: report.divergentColorsExist, hint: 'P and Q differ in at least one component' },
+    { label: 'Grounds = divergent colors', state: report.groundsAreDivergentColors, hint: '5 · What each overlap shows besides the veil colour is its ground’s colour' },
+    { label: 'Ground absorbs the excess', state: report.groundAssimilatesExcess, hint: '7 · If the common colour is unbalanced, the ground behind the overlap it dominates contains it (grey: balanced, not applicable)' },
+    { label: 'Veil fits the ground', state: report.veilFromGround, hint: '9–10 · Y and B ask for a red veil; tertiaries sharing a subordinate ask for more of it (grey: the book gives no rule)' },
+    { label: 'Balanced transparency', state: report.balancedTransparency, hint: 't recovered over A equals t recovered over B (linear light)' },
+    { label: 'Alpha consistency', state: report.alphaConsistency, hint: 'α agrees across the R, G, B channels within Da Pos’s ±0.05' },
   ];
 
   const Section = ({ title, rows }: { title: string; rows: Row[] }) => (

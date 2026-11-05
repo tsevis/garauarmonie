@@ -3,7 +3,7 @@
  * transparency alpha from an existing four-zone display.
  */
 
-import { computeInverse, validateTransparency } from '@garau/engine';
+import { computeInverse, validateTransparency, DA_POS_ALPHA_TOLERANCE } from '@garau/engine';
 import { expectPositionals } from '../flags.js';
 import { parseAlpha, parseColor } from '../parse.js';
 import { bullets, colorInfo, heading, kv, percent, swatchWithNotation } from '../format.js';
@@ -11,7 +11,8 @@ import { exitFor, reportLines } from '../report.js';
 import type { Command } from '../types.js';
 
 const USAGE = 'garau inverse <A> <B> <P> <Q>';
-const DEFAULT_TOLERANCE = 0.1;
+/** Da Pos: channel α must agree within ±0.05. */
+const DEFAULT_TOLERANCE = DA_POS_ALPHA_TOLERANCE;
 
 export const inverseCommand: Command = {
   name: 'inverse',

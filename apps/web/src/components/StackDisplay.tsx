@@ -7,10 +7,18 @@ export interface VeilLayer {
   alpha: number;
 }
 
+/** The accumulated colour of one plane over each background, as the engine computes it. */
+export interface PlaneColours {
+  overA: RGB;
+  overB: RGB;
+}
+
 interface Props {
   A: RGB;
   B: RGB;
   layers: VeilLayer[];
+  /** One entry per layer, in the same order. */
+  planes: PlaneColours[];
   /** 0–1: how much smaller each nested plane is than the one beneath it. */
   depth: number;
   selectedId: string | null;
@@ -42,12 +50,13 @@ function rectPoly(hw: number, hh: number, deg: number): string {
 }
 
 /**
- * Renders A|B backgrounds with the veils drawn as nested, tilted, translucent
- * rectangles (opacity = 1−α). The renderer's source-over compositing reproduces
- * Metelli's averaging exactly, so what is drawn equals what the engine computes
- * for each accumulated plane.
+ * Renders A|B backgrounds with the veils drawn as nested, tilted rectangles.
+ * Each plane is filled, opaquely, with the colour the engine computes for it
+ * over A (left half) and over B (right half). A translucent SVG fill would
+ * blend gamma-encoded values, while the engine averages in linear light, so
+ * drawing the computed colours is what keeps the picture equal to the numbers.
  */
-export default function StackDisplay({ A, B, layers, depth, selectedId, onSelect }: Props) {
+export default function StackDisplay({ A, B, layers, planes, depth, selectedId, onSelect }: Props) {
   const step = 0.1 + depth * 0.16; // fraction each plane shrinks
 
   return (
@@ -56,6 +65,12 @@ export default function StackDisplay({ A, B, layers, depth, selectedId, onSelect
         <filter id="planeShadow" x="-15%" y="-15%" width="130%" height="130%">
           <feDropShadow dx="4" dy="5" stdDeviation="6" floodOpacity="0.22" />
         </filter>
+        <clipPath id="halfA">
+          <rect x={0} y={0} width={SPLIT} height={H} />
+        </clipPath>
+        <clipPath id="halfB">
+          <rect x={SPLIT} y={0} width={W - SPLIT} height={H} />
+        </clipPath>
       </defs>
 
       {/* Backgrounds */}
@@ -68,12 +83,14 @@ export default function StackDisplay({ A, B, layers, depth, selectedId, onSelect
         const scale = Math.max(0.14, 1 - i * step);
         const pts = rectPoly(HW0 * scale, HH0 * scale, -14 + i * 8);
         const selected = layer.id === selectedId;
+        const plane = planes[i];
         return (
           <g key={layer.id} filter="url(#planeShadow)" style={{ cursor: 'pointer' }}>
+            {plane && <polygon points={pts} fill={rgbToCss(plane.overA)} clipPath="url(#halfA)" />}
+            {plane && <polygon points={pts} fill={rgbToCss(plane.overB)} clipPath="url(#halfB)" />}
             <polygon
               points={pts}
-              fill={rgbToCss(layer.t)}
-              fillOpacity={1 - layer.alpha}
+              fill="transparent"
               stroke={selected ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.28)'}
               strokeWidth={selected ? 2 : 1.1}
               onClick={(e) => {

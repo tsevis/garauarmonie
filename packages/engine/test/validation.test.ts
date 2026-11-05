@@ -13,9 +13,7 @@ describe('validateTransparency', () => {
 
     expect(typeof report.overallValid).toBe('boolean');
     expect(report.fourRegions).toBe(true);
-    expect(report.transparencyQuality).toBeGreaterThanOrEqual(0);
-    expect(report.transparencyQuality).toBeLessThanOrEqual(100);
-    expect(report.juxtapositionType).not.toBeNull();
+    expect(report.juxtapositionType ?? report.pairRelation).not.toBeNull();
   });
 
   it('a physically-consistent forward config satisfies alpha consistency', () => {
@@ -54,7 +52,7 @@ describe('validateTransparency', () => {
     const { P, Q } = computeForward(A, B, t, 0.4);
     const report = validateTransparency(A, B, P, Q, t, 0.4);
     const summary = getValiditySummary(report);
-    expect(summary).toContain('Transparency quality:');
+    expect(summary).toContain('Degree of transparency:');
     expect(summary).toMatch(/Valid|Invalid/);
   });
 });

@@ -18,8 +18,8 @@ function cli(...argv: string[]): Capture {
 const A = '#3A6EA5';
 const B = '#C8B560';
 const T = '#B0452A';
-const P = '#6F5C6E';
-const Q = '#BD8348';
+const P = '#815E80';
+const Q = '#BE904D';
 
 describe('top level', () => {
   it('prints help listing every command when given no arguments', () => {
@@ -64,19 +64,29 @@ describe('analyze', () => {
   });
 
   it('emits the mixture as JSON', () => {
-    const r = cli('analyze', '#FF0000', '--json');
+    const r = cli('analyze', '#C84650', '--json');
     const data = JSON.parse(r.out);
     expect(data.mixture.dominant).toBe('R');
     expect(data.mixture.notation).toBe('R');
     expect(data.pair).toBeUndefined();
   });
 
-  it('classifies a pair when given two colours', () => {
-    const r = cli('analyze', '#FF0000', '#0000FF', '--json');
+  it('gives two primaries a relation, not a juxtaposition type or score', () => {
+    const r = cli('analyze', '#C84650', '#567F9A', '--json');
     expect(r.code).toBe(0);
     const data = JSON.parse(r.out);
-    expect(data.pair.type).toBe('Partial Inversion');
+    expect(data.pair.relation).toBe('Two primaries');
+    expect(data.pair.type).toBeUndefined();
+    expect(data.pair.transparencyQuality).toBeUndefined();
     expect(data.pair.harmony).toBe('Neutral');
+  });
+
+  it('reports degree and balance, not one quality score, for two tertiaries', () => {
+    const r = cli('analyze', '#D78C00', '#B783E7');
+    expect(r.out).toMatch(/Shared Subordinate/);
+    expect(r.out).toMatch(/Degree\s+Very transparent/);
+    expect(r.out).toMatch(/Balance\s+\d+\/100/);
+    expect(r.out).not.toMatch(/quality/i);
   });
 
   it('rejects a third colour', () => {
@@ -104,7 +114,7 @@ describe('compose', () => {
     const r = cli('compose', A, B, T, '0.55');
     expect(r.out).toContain(P);
     expect(r.out).toContain(Q);
-    expect(r.out).toMatch(/quality/i);
+    expect(r.out).toMatch(/degree of transparency/i);
   });
 
   it('accepts alpha as a percentage', () => {
@@ -129,7 +139,7 @@ describe('inverse', () => {
     const r = cli('inverse', A, B, P, Q, '--json');
     const data = JSON.parse(r.out);
     expect(data.alpha).toBeCloseTo(0.55, 2);
-    expect(data.t.hex).toBe('#B0462B');
+    expect(data.t.hex).toBe('#B04428');
   });
 
   it('honours --tolerance', () => {
@@ -160,13 +170,22 @@ describe('validate', () => {
     expect(r.code).toBe(0);
     const data = JSON.parse(r.out);
     expect(data.report.overallValid).toBe(true);
-    expect(data.report.juxtapositionType).toBeTruthy();
+    expect(data.report.juxtapositionType ?? data.report.pairRelation).toBeTruthy();
   });
 
   it('lists the named conditions in the text report', () => {
     const r = cli('validate', A, B, P, Q, T, '0.55');
     expect(r.out).toMatch(/contrast reduction/i);
     expect(r.out).toMatch(/scission/i);
+  });
+
+  it('lists Garau’s veil and ground conditions and the two readouts', () => {
+    const r = cli('validate', A, B, P, Q, T, '0.55');
+    expect(r.out).toMatch(/Veil is common colour/);
+    expect(r.out).toMatch(/Grounds are divergent/);
+    expect(r.out).toMatch(/Ground absorbs excess/);
+    expect(r.out).toMatch(/Veil fits the ground/);
+    expect(r.out).toMatch(/Degree of transparency/);
   });
 });
 
@@ -178,7 +197,8 @@ describe('suggest', () => {
     expect(data.candidates.length).toBeGreaterThanOrEqual(6);
     expect(data.candidates[0].hex).toMatch(/^#[0-9A-F]{6}$/);
     expect(typeof data.candidates[0].label).toBe('string');
-    expect(typeof data.candidates[0].quality).toBe('number');
+    expect(typeof data.candidates[0].valid).toBe('boolean');
+    expect('quality' in data.candidates[0]).toBe(false);
   });
 });
 

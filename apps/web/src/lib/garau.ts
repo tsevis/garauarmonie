@@ -18,6 +18,7 @@ function secondaryName(a: DominantPrimary, b: DominantPrimary): string {
 
 /** A plain-language sentence describing a color's visual mixture. */
 export function describeMixture(m: GarauMixture): string {
+  if (m.isAchromatic) return 'An achromatic colour: grey, white or black has no hue to split into primaries.';
   const dom = PRIMARY_NAME[m.dominant];
   if (m.isPure || m.subordinate === null) return `A pure, unmixed ${dom}.`;
   const sub = PRIMARY_NAME[m.subordinate];
@@ -31,7 +32,8 @@ export function describeMixture(m: GarauMixture): string {
 }
 
 /** Short mixture-type word for a badge. */
-export function mixtureType(m: GarauMixture): 'Pure' | 'Balanced' | 'Unbalanced' {
+export function mixtureType(m: GarauMixture): 'Achromatic' | 'Pure' | 'Balanced' | 'Unbalanced' {
+  if (m.isAchromatic) return 'Achromatic';
   if (m.isPure) return 'Pure';
   if (m.isBalanced) return 'Balanced';
   return 'Unbalanced';

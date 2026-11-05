@@ -17,6 +17,7 @@ const JT_BADGE: Record<string, string> = {
   'Complete Inversion': '#B0873E',
   'Partial Inversion': '#B4534B',
 };
+const NO_TYPE_BADGE = '#6B6660';
 
 interface CardProps {
   preset: Preset;
@@ -41,11 +42,11 @@ function PresetCard({ preset, onLoad, onRemove }: CardProps) {
           <div className="flex items-center justify-between">
             <span
               className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
-              style={{ backgroundColor: JT_BADGE[preset.jt] ?? '#6B6660' }}
+              style={{ backgroundColor: (preset.jt && JT_BADGE[preset.jt]) || NO_TYPE_BADGE }}
             >
-              {preset.jt}
+              {preset.jt ?? 'Not two tertiaries'}
             </span>
-            <span className="font-mono text-[11px] text-muted">{preset.quality}/100</span>
+            <span className="text-[11px] text-muted">{preset.degree ?? '—'}</span>
           </div>
         </div>
       </button>
@@ -123,7 +124,7 @@ export default function Gallery({ onLoad, saved, onRemove }: Props) {
 
       {view === 'degree' &&
         BY_DEGREE.map((group) => (
-          <section key={group.key} className="space-y-3">
+          <section key={group.degree} className="space-y-3">
             <div>
               <h3 className="text-sm font-semibold text-ink">{group.label}</h3>
               <p className="mt-0.5 text-xs text-muted">{group.blurb}</p>

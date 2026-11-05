@@ -1,19 +1,14 @@
 import { useMemo, useState } from 'react';
 import type { RGB } from '@garau/engine';
-import { classifyJuxtaposition } from '@garau/engine';
+import { classifyJuxtaposition, pairLabel } from '@garau/engine';
 import ColorField from '../components/ColorField';
+import TransparencyReadouts from '../components/TransparencyReadouts';
 import ChromaticDisk from '../components/ChromaticDisk';
+import DiskFrame from '../components/DiskFrame';
 import MixtureReadout from '../components/MixtureReadout';
+import { garau, ON_GREY_MUTED } from '../lib/garauColour';
 
 type Mode = 'single' | 'pair';
-
-// How strongly each type reads as a transparency veil (distinct from harmony).
-const TRANSPARENCY_HINT: Record<string, string> = {
-  'Shared Subordinate': 'The most compelling veil — the shared component reads cleanly as the transparent layer.',
-  'Shared Dominant': 'A workable veil, though the shared dominant makes the layer heavier.',
-  'Complete Inversion': 'A weaker veil; the two shared colours tend to converge.',
-  'Partial Inversion': 'The hardest to read as a veil — the pair diverges too strongly.',
-};
 
 const HARMONY_STYLE: Record<string, { bg: string; fg: string }> = {
   'Balanced concord': { bg: '#E5EEE4', fg: '#33552F' },
@@ -27,9 +22,9 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 
 export default function Analyzer() {
   const [mode, setMode] = useState<Mode>('single');
-  const [color, setColor] = useState<RGB>({ r: 214, g: 92, b: 48 }); // a reddish orange
-  const [c1, setC1] = useState<RGB>({ r: 210, g: 120, b: 40 }); // orange
-  const [c2, setC2] = useState<RGB>({ r: 60, g: 130, b: 180 }); // blue
+  const [color, setColor] = useState<RGB>(garau('yR'));
+  const [c1, setC1] = useState<RGB>(garau('rY'));
+  const [c2, setC2] = useState<RGB>(garau('rB'));
 
   const analysis = useMemo(() => classifyJuxtaposition(c1, c2), [c1, c2]);
 
@@ -60,12 +55,12 @@ export default function Analyzer() {
 
       {mode === 'single' ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Card className="flex flex-col items-center justify-center">
+          <DiskFrame className="flex flex-col items-center justify-center">
             <ChromaticDisk markers={[{ color, label: '●' }]} onPick={setColor} size={340} />
-            <p className="mt-2 text-center text-xs text-muted">
-              Click anywhere in the disk to analyze that color. R · Y · B are Garau’s three primaries.
+            <p className="mt-2 text-center text-xs" style={{ color: ON_GREY_MUTED }}>
+              Click a color on the disk, the ladder or the cover’s circle to analyze it. R · Y · B are Garau’s three primaries.
             </p>
-          </Card>
+          </DiskFrame>
           <div className="space-y-5">
             <Card>
               <ColorField label="Color" value={color} onChange={setColor} showMixture />
@@ -82,7 +77,7 @@ export default function Analyzer() {
               <ColorField label="Color 1" sublabel="→ P" value={c1} onChange={setC1} showMixture />
               <ColorField label="Color 2" sublabel="→ Q" value={c2} onChange={setC2} showMixture />
             </Card>
-            <Card className="flex justify-center">
+            <DiskFrame className="flex justify-center">
               <ChromaticDisk
                 markers={[
                   { color: c1, label: '1' },
@@ -90,7 +85,7 @@ export default function Analyzer() {
                 ]}
                 size={280}
               />
-            </Card>
+            </DiskFrame>
           </div>
 
           <div className="space-y-5">
@@ -108,33 +103,25 @@ export default function Analyzer() {
                   {analysis.harmony}
                 </span>
                 <span className="text-sm text-muted">·</span>
-                <span className="text-sm font-semibold text-ink">{analysis.type}</span>
+                <span className="text-sm font-semibold text-ink">{pairLabel(analysis)}</span>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-ink/80">{analysis.harmonyNote}</p>
             </Card>
 
-            {/* Transparency reading — a distinct dimension */}
+            {/* Transparency reading — Garau's two readouts, kept apart */}
             <Card>
-              <div className="flex items-baseline justify-between">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">As a transparency</div>
-                <div className="font-mono text-lg text-ink">{analysis.transparencyQuality.toFixed(0)}/100</div>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-line">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${analysis.transparencyQuality}%`,
-                    backgroundColor: analysis.transparencyQuality > 66 ? '#4E7A51' : analysis.transparencyQuality > 40 ? '#B0873E' : '#B4534B',
-                  }}
-                />
-              </div>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{TRANSPARENCY_HINT[analysis.type]}</p>
+              <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted">As a transparency</div>
+              <TransparencyReadouts
+                degree={analysis.kind === 'tertiary' ? analysis.degree : null}
+                balance={analysis.kind === 'tertiary' ? analysis.balance : null}
+                emptyNote="The four juxtapositions, and their transparency readings, hold only between two tertiaries."
+              />
             </Card>
 
             <Card>
               <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Analysis</h3>
               <p className="text-sm leading-relaxed text-muted">{analysis.description}</p>
-              {analysis.recommendedCorrection && (
+              {analysis.kind === 'tertiary' && analysis.recommendedCorrection && (
                 <p className="mt-3 rounded-xs bg-paper p-3 text-sm leading-relaxed text-ink">
                   <span className="font-semibold">Correction · </span>
                   {analysis.recommendedCorrection}

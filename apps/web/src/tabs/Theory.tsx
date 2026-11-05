@@ -5,6 +5,7 @@ import FourZonesFigure from '../components/theory/FourZonesFigure';
 import TenConditionsFigure from '../components/theory/TenConditionsFigure';
 import ChromaticScissionFigure from '../components/theory/ChromaticScissionFigure';
 import JuxtapositionsFigure from '../components/theory/JuxtapositionsFigure';
+import GarauCircleFigure from '../components/theory/GarauCircleFigure';
 
 function Figure({ kind }: { kind: FigureKind }) {
   switch (kind) {
@@ -18,6 +19,8 @@ function Figure({ kind }: { kind: FigureKind }) {
       return <ChromaticScissionFigure />;
     case 'juxtapositions':
       return <JuxtapositionsFigure />;
+    case 'garauCircle':
+      return <GarauCircleFigure />;
     default:
       return null;
   }
@@ -52,6 +55,17 @@ function ChapterView({ chapter }: { chapter: Chapter }) {
             <figcaption className="text-center text-xs text-muted">{chapter.figureCaption}</figcaption>
           )}
         </figure>
+      )}
+
+      {chapter.note && (
+        <blockquote className="max-w-2xl space-y-3 border-l-2 border-accent pl-4">
+          {chapter.note.text.map((para, i) => (
+            <p key={i} className="text-[15px] italic leading-relaxed text-ink/80">
+              {para}
+            </p>
+          ))}
+          <footer className="text-sm text-muted">— {chapter.note.by}</footer>
+        </blockquote>
       )}
 
       {chapter.terms && chapter.terms.length > 0 && (

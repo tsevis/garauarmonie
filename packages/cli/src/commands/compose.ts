@@ -18,8 +18,9 @@ export const composeCommand: Command = {
   summary: 'Forward mode: compute overlaps P and Q from A, B, t and alpha.',
   usage: USAGE,
   details: [
-    'P = alpha*A + (1-alpha)*t and Q = alpha*B + (1-alpha)*t, per channel.',
-    'alpha is 0 (fully transparent) to 1 (opaque); "55%" is accepted too.',
+    'P = alpha*A + (1-alpha)*t and Q = alpha*B + (1-alpha)*t, per channel, in linear light.',
+    'alpha is Metelli\'s photometric alpha: 1 shows the ground unchanged, 0 is an opaque veil;',
+    '"55%" is accepted too.',
     'Exits 1 when the resulting four-zone display is not a valid transparency.',
   ],
   spec: NO_FLAGS,

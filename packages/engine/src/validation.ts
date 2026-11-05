@@ -9,28 +9,31 @@
  */
 
 import type { RGB, GarauMixture, ValidationReport } from './types.js';
-import { rgbToNormalized } from './conversions.js';
-import { analyzeVisualMixture, classifyJuxtaposition, hueDistance } from './visualMixture.js';
+import { rgbToLinear, rgbToNormalized } from './conversions.js';
+import { analyzeVisualMixture } from './visualMixture.js';
+import { classifyJuxtaposition, sharedColours } from './juxtaposition.js';
 import { computeInverse } from './metelli.js';
 import { checkMetelliConditions } from './metelliConditions.js';
+import type { MetelliConditions } from './metelliConditions.js';
+import {
+  displayDegree,
+  groundAssimilatesExcess,
+  groundsAreDivergentColours,
+  veilFromGround,
+  veilIsCommonColour,
+} from './garauConditions.js';
+import type { DisplayMixtures } from './garauConditions.js';
 
-function commonColorExists(m1: GarauMixture, m2: GarauMixture): [boolean, string | null] {
-  if (m1.subordinate !== null && m2.subordinate !== null && m1.subordinate === m2.subordinate) {
-    return [true, `Shared subordinate: ${m1.subordinate}`];
-  }
-  if (m1.dominant === m2.dominant) return [true, `Shared dominant: ${m1.dominant}`];
-  if (m1.subordinate !== null && m2.subordinate !== null) {
-    if (m1.dominant === m2.subordinate)
-      return [true, `Inversion: ${m1.dominant} is dominant in one, subordinate in the other`];
-    if (m1.subordinate === m2.dominant)
-      return [true, `Inversion: ${m1.subordinate} is subordinate in one, dominant in the other`];
-  }
-  const hueDiff = hueDistance(m1.hueAngle, m2.hueAngle);
-  if (hueDiff < 45) return [true, `Close hues (${hueDiff.toFixed(1)}° apart) share perceptual components`];
-  return [false, null];
+/** P and Q share an RYB component. Greys share nothing: they have no hue to split. */
+function commonColorExistsFor(m1: GarauMixture, m2: GarauMixture): [boolean, string | null] {
+  const common = sharedColours(m1, m2);
+  if (common.length === 0) return [false, null];
+  const roles = common.map((c) => `${c} (${m1.dominant === c ? 'dominant' : 'subordinate'} in P, ` +
+    `${m2.dominant === c ? 'dominant' : 'subordinate'} in Q)`);
+  return [true, roles.join('; ')];
 }
 
-function divergentColorsExist(m1: GarauMixture, m2: GarauMixture): [boolean, string] {
+function divergentColorsFor(m1: GarauMixture, m2: GarauMixture): [boolean, string] {
   const divergent: string[] = [];
   if (m1.dominant !== m2.dominant) divergent.push(`Dominants: ${m1.dominant} vs ${m2.dominant}`);
   if (m1.subordinate !== m2.subordinate) {
@@ -39,9 +42,16 @@ function divergentColorsExist(m1: GarauMixture, m2: GarauMixture): [boolean, str
   return divergent.length > 0 ? [true, divergent.join('; ')] : [false, 'No divergent components found'];
 }
 
+/** Largest distance (linear RGB) between the t recovered over A and over B. */
+const T_BALANCE_TOLERANCE = 0.15;
+/** At or above this α the veil is opaque and balance is moot. */
+const OPAQUE_ALPHA = 0.99;
+
 /**
- * Garau condition 6 — is t present in P and Q in equal proportion?
- * Recover t from each side using its own background and compare (corrected).
+ * Physical balance — is t present in P and Q in equal proportion? Recover t,
+ * in linear light, from each side using its own background and compare.
+ * (Garau's own condition 6, on the role of the common colour, is the pair's
+ * `balance` readout.)
  */
 function balancedTransparency(
   A: RGB,
@@ -49,13 +59,13 @@ function balancedTransparency(
   P: RGB,
   Q: RGB,
   alpha: number,
-  tolerance = 0.15,
+  tolerance = T_BALANCE_TOLERANCE,
 ): [boolean, string] {
-  if (alpha >= 0.99) return [true, 'Opaque limit — balance not applicable'];
-  const an = rgbToNormalized(A);
-  const bn = rgbToNormalized(B);
-  const pn = rgbToNormalized(P);
-  const qn = rgbToNormalized(Q);
+  if (alpha >= OPAQUE_ALPHA) return [true, 'Opaque limit — balance not applicable'];
+  const an = rgbToLinear(A);
+  const bn = rgbToLinear(B);
+  const pn = rgbToLinear(P);
+  const qn = rgbToLinear(Q);
   const tFromP = [
     (pn.r - alpha * an.r) / (1 - alpha),
     (pn.g - alpha * an.g) / (1 - alpha),
@@ -74,13 +84,115 @@ function balancedTransparency(
     : [false, `Unbalanced (t deviation: ${dev.toFixed(3)})`];
 }
 
-function transparencyDegree(t: RGB, p: GarauMixture, q: GarauMixture): [string, string] {
-  const tm = analyzeVisualMixture(t);
-  if (p.subordinate === tm.dominant && q.subordinate === tm.dominant)
-    return ['very_transparent', 'Common color is subordinate in both mixtures'];
-  if (p.dominant === tm.dominant && q.dominant === tm.dominant)
-    return ['more_opaque', 'Common color is dominant in both mixtures'];
-  return ['intermediate', 'Mixed dominance relationship'];
+/** Warnings and suggestions one group of checks contributes to the report. */
+interface Notes {
+  readonly warnings: readonly string[];
+  readonly suggestions: readonly string[];
+}
+
+const merge = (...all: readonly Notes[]): Notes => ({
+  warnings: all.flatMap((n) => n.warnings),
+  suggestions: all.flatMap((n) => n.suggestions),
+});
+
+/** Distance between two backgrounds in sRGB below which they read as one. */
+const SIMILAR_BACKGROUNDS = 0.1;
+
+/** Conditions 2–3: P and Q read as chromatic, preferably unbalanced, mixtures. */
+function mixtureChecks(pMix: GarauMixture, qMix: GarauMixture) {
+  const isMixture = (m: GarauMixture): boolean => !m.isPure && !m.isAchromatic;
+  const visualMixtureP = isMixture(pMix);
+  const visualMixtureQ = isMixture(qMix);
+  const unbalancedPreference = !(pMix.isBalanced || qMix.isBalanced);
+  const warn = (zone: string, m: GarauMixture): string =>
+    `Zone ${zone} (${m.notation}) is ${m.isAchromatic ? 'achromatic' : 'a pure color'}, not a visual mixture`;
+  const notes: Notes = {
+    warnings: [
+      ...(visualMixtureP ? [] : [warn('P', pMix)]),
+      ...(visualMixtureQ ? [] : [warn('Q', qMix)]),
+    ],
+    suggestions: [
+      ...(visualMixtureP && visualMixtureQ ? [] : ['Make P and Q mixtures for a stronger transparency effect']),
+      ...(pMix.isBalanced && qMix.isBalanced
+        ? ['Both P and Q are balanced mixtures, which resist splitting. Use unbalanced mixtures.']
+        : []),
+    ],
+  };
+  return { fields: { visualMixtureP, visualMixtureQ, unbalancedPreference }, notes };
+}
+
+/** P and Q share a colour and differ in another (the precondition for 4–5). */
+function sharedAndDivergent(pMix: GarauMixture, qMix: GarauMixture) {
+  const [commonColorExists, commonDesc] = commonColorExistsFor(pMix, qMix);
+  const [divergentColorsExist, divergentDesc] = divergentColorsFor(pMix, qMix);
+  const notes: Notes = {
+    warnings: [
+      ...(commonColorExists ? [] : ['No common color component found between P and Q']),
+      ...(divergentColorsExist ? [] : ['No divergent color components found']),
+    ],
+    suggestions: [
+      commonColorExists ? `Common color: ${commonDesc}` : 'P and Q should share a colour: it becomes the veil',
+      ...(divergentColorsExist ? [`Divergent components: ${divergentDesc}`] : []),
+    ],
+  };
+  return { fields: { commonColorExists, divergentColorsExist }, notes };
+}
+
+/** Garau's conditions 4, 5, 7, 8 and 9–10 on the six zones. */
+function garauChecks(d: DisplayMixtures) {
+  const fields = {
+    veilIsCommonColor: veilIsCommonColour(d),
+    groundsAreDivergentColors: groundsAreDivergentColours(d),
+    groundAssimilatesExcess: groundAssimilatesExcess(d),
+    veilFromGround: veilFromGround(d),
+    degreeOfTransparency: displayDegree(d),
+  };
+  const notes: Notes = {
+    warnings: [
+      ...(fields.veilIsCommonColor === false ? [`The veil (${d.t.notation}) is not the colour P and Q share`] : []),
+      ...(fields.groundsAreDivergentColors === false
+        ? ['The colours P and Q do not share are not the ground colours']
+        : []),
+    ],
+    suggestions: [
+      ...(d.t.isAchromatic ? ['The veil is achromatic: Garau’s chromatic conditions do not apply to it'] : []),
+      ...(fields.groundAssimilatesExcess === false
+        ? ['The common colour is unbalanced: let the ground behind the overlap it dominates contain it']
+        : []),
+      ...(fields.veilFromGround === false ? ['This ground asks for a different veil colour (conditions 9–10)'] : []),
+    ],
+  };
+  return { fields, notes };
+}
+
+function backgroundNotes(A: RGB, B: RGB, aMix: GarauMixture, bMix: GarauMixture): Notes {
+  const an = rgbToNormalized(A);
+  const bn = rgbToNormalized(B);
+  const bgDiff = Math.hypot(an.r - bn.r, an.g - bn.g, an.b - bn.b);
+  return {
+    warnings: [],
+    suggestions: [
+      ...(bgDiff < SIMILAR_BACKGROUNDS ? ['Backgrounds are very similar. Increase the contrast between A and B.'] : []),
+      ...(!aMix.isPure || !bMix.isPure ? [`Backgrounds are mixtures: A=${aMix.notation}, B=${bMix.notation}.`] : []),
+    ],
+  };
+}
+
+/** The physical side: Metelli's conditions, α agreement and t balance. */
+function physicalChecks(A: RGB, B: RGB, P: RGB, Q: RGB, alpha: number) {
+  const metelli: MetelliConditions = checkMetelliConditions(A, B, P, Q, alpha);
+  const inverse = computeInverse(A, B, P, Q);
+  const alphaConsistency = !inverse.warnings.some((w) => w.includes('Alpha inconsistency'));
+  const [balanced, balanceDesc] = balancedTransparency(A, B, P, Q, alpha);
+  const notes: Notes = {
+    warnings: [
+      ...(alphaConsistency ? [] : ['Alpha varies across color channels — may not be a balanced transparency']),
+      ...(balanced ? [] : [`Transparency is unbalanced: ${balanceDesc}`]),
+      ...metelli.warnings,
+    ],
+    suggestions: balanced ? [] : ['For balanced transparency, t should be present equally in P and Q'],
+  };
+  return { metelli, alphaConsistency, balanced, notes };
 }
 
 /** Full validation of a four-zone configuration against all conditions. */
@@ -92,120 +204,46 @@ export function validateTransparency(
   t: RGB,
   alpha: number,
 ): ValidationReport {
-  const warnings: string[] = [];
-  const suggestions: string[] = [];
-
-  const pMix = analyzeVisualMixture(P);
-  const qMix = analyzeVisualMixture(Q);
-
-  const visualMixtureP = !pMix.isPure;
-  if (!visualMixtureP) {
-    warnings.push(`Zone P (${pMix.notation}) is a pure color, not a visual mixture`);
-    suggestions.push('Consider adjusting P to be a mixture for a stronger transparency effect');
-  }
-  const visualMixtureQ = !qMix.isPure;
-  if (!visualMixtureQ) {
-    warnings.push(`Zone Q (${qMix.notation}) is a pure color, not a visual mixture`);
-    suggestions.push('Consider adjusting Q to be a mixture for a stronger transparency effect');
-  }
-
-  let unbalancedPreference: boolean | null;
-  if (pMix.isBalanced || qMix.isBalanced) {
-    unbalancedPreference = false;
-    if (pMix.isBalanced && qMix.isBalanced) {
-      suggestions.push(
-        'Both P and Q are balanced mixtures. These resist perceptual splitting. ' +
-          'Consider unbalanced mixtures for stronger transparency.',
-      );
-    }
-  } else {
-    unbalancedPreference = true;
-  }
-
-  const [commonExists, commonDesc] = commonColorExists(pMix, qMix);
-  if (!commonExists) {
-    warnings.push('No common color component found between P and Q');
-    suggestions.push('P and Q should share a perceptual color component (this becomes t)');
-  } else if (commonDesc) {
-    suggestions.push(`Common color: ${commonDesc}`);
-  }
-
-  const [divergentExists, divergentDesc] = divergentColorsExist(pMix, qMix);
-  if (!divergentExists) warnings.push('No divergent color components found');
-  else suggestions.push(`Divergent components: ${divergentDesc}`);
-
-  const [balanced, balanceDesc] = balancedTransparency(A, B, P, Q, alpha);
-  if (!balanced) {
-    warnings.push(`Transparency is unbalanced: ${balanceDesc}`);
-    suggestions.push('For balanced transparency, t should be present equally in P and Q');
-  }
-
-  const [degree, degreeDesc] = transparencyDegree(t, pMix, qMix);
-  suggestions.push(`Transparency degree: ${degree} — ${degreeDesc}`);
-
-  const an = rgbToNormalized(A);
-  const bn = rgbToNormalized(B);
-  const bgDiff = Math.sqrt((an.r - bn.r) ** 2 + (an.g - bn.g) ** 2 + (an.b - bn.b) ** 2);
-  if (bgDiff < 0.1) {
-    suggestions.push('Backgrounds are very similar. Increase contrast between A and B for a clearer transparency.');
-  }
-
-  const aMix = analyzeVisualMixture(A);
-  const bMix = analyzeVisualMixture(B);
-  if (!aMix.isPure || !bMix.isPure) {
-    suggestions.push(`Backgrounds are mixtures: A=${aMix.notation}, B=${bMix.notation}. This adds complexity.`);
-  }
-
-  const inverse = computeInverse(A, B, P, Q);
-  const alphaConsistency = !inverse.warnings.some((w) => w.includes('Alpha inconsistency'));
-  if (!alphaConsistency) {
-    warnings.push('Alpha varies across color channels — may not be a balanced transparency');
-  }
-
-  const metelli = checkMetelliConditions(A, B, P, Q, alpha);
-  warnings.push(...metelli.warnings);
-
-  const juxtaposition = classifyJuxtaposition(P, Q);
-
-  const qualityFactors = [
-    juxtaposition.transparencyQuality,
-    pMix.splittability * 100,
-    qMix.splittability * 100,
-  ];
-  let penalty = 0;
-  if (!metelli.contrastReduction) penalty += 15;
-  if (!metelli.topologyPreserved) penalty += 15;
-  if (!metelli.scissionRealizable) penalty += 10;
-  if (!visualMixtureP) penalty += 10;
-  if (!visualMixtureQ) penalty += 10;
-  if (!commonExists) penalty += 20;
-  const meanQuality = qualityFactors.reduce((s, v) => s + v, 0) / qualityFactors.length;
-  const transparencyQuality = Math.max(0, Math.min(100, meanQuality - penalty));
+  const d: DisplayMixtures = {
+    A: analyzeVisualMixture(A),
+    B: analyzeVisualMixture(B),
+    P: analyzeVisualMixture(P),
+    Q: analyzeVisualMixture(Q),
+    t: analyzeVisualMixture(t),
+  };
+  const mixtures = mixtureChecks(d.P, d.Q);
+  const shared = sharedAndDivergent(d.P, d.Q);
+  const garau = garauChecks(d);
+  const physical = physicalChecks(A, B, P, Q, alpha);
+  const pair = classifyJuxtaposition(P, Q);
+  const notes = merge(mixtures.notes, shared.notes, garau.notes, backgroundNotes(A, B, d.A, d.B), physical.notes);
+  const { metelli } = physical;
 
   const overallValid =
     metelli.scissionRealizable &&
     metelli.topologyPreserved &&
     metelli.contrastReduction &&
-    commonExists &&
-    alphaConsistency;
+    shared.fields.commonColorExists &&
+    garau.fields.veilIsCommonColor !== false &&
+    garau.fields.groundsAreDivergentColors !== false &&
+    physical.alphaConsistency;
 
   return {
     scissionRealizable: metelli.scissionRealizable,
     topologyPreserved: metelli.topologyPreserved,
     contrastReduction: metelli.contrastReduction,
     fourRegions: true,
-    visualMixtureP,
-    visualMixtureQ,
-    unbalancedPreference,
-    commonColorExists: commonExists,
-    divergentColorsExist: divergentExists,
-    balancedTransparency: balanced,
-    alphaConsistency,
+    ...mixtures.fields,
+    ...shared.fields,
+    ...garau.fields,
+    balancedTransparency: physical.balanced,
+    alphaConsistency: physical.alphaConsistency,
     overallValid,
-    warnings,
-    suggestions,
-    transparencyQuality,
-    juxtapositionType: juxtaposition.type,
+    warnings: notes.warnings,
+    suggestions: notes.suggestions,
+    balance: pair.kind === 'tertiary' ? pair.balance : null,
+    juxtapositionType: pair.kind === 'tertiary' ? pair.type : null,
+    pairRelation: pair.kind === 'non-tertiary' ? pair.relation : null,
   };
 }
 
@@ -216,16 +254,14 @@ export function getValiditySummary(report: ValidationReport): string {
     : '✗ Invalid transparency configuration';
   const lines = [
     status,
-    `Transparency quality: ${report.transparencyQuality.toFixed(0)}/100`,
-    `Juxtaposition type: ${report.juxtapositionType ?? 'Unknown'}`,
+    `Degree of transparency: ${report.degreeOfTransparency ?? 'not applicable'}`,
+    `Balance: ${report.balance === null ? 'not applicable' : `${report.balance.score}/100`}`,
+    `Juxtaposition: ${report.juxtapositionType ?? report.pairRelation ?? 'Unknown'}`,
   ];
-  if (report.warnings.length > 0) {
-    lines.push('', 'Warnings:');
-    report.warnings.forEach((w) => lines.push(`  • ${w}`));
-  }
-  if (report.suggestions.length > 0) {
-    lines.push('', 'Suggestions:');
-    report.suggestions.slice(0, 3).forEach((s) => lines.push(`  • ${s}`));
-  }
-  return lines.join('\n');
+  const warnings = report.warnings.length > 0 ? ['', 'Warnings:', ...report.warnings.map((w) => `  • ${w}`)] : [];
+  const suggestions =
+    report.suggestions.length > 0
+      ? ['', 'Suggestions:', ...report.suggestions.slice(0, 3).map((s) => `  • ${s}`)]
+      : [];
+  return [...lines, ...warnings, ...suggestions].join('\n');
 }

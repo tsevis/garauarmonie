@@ -7,8 +7,10 @@ import {
   classifyJuxtaposition,
   suggestTransparentColor,
   rgbToHex,
+  pairLabel,
 } from '@garau/engine';
 import { downloadPng, downloadSvg } from '../lib/exportImage';
+import { STUDIES, presetToConfig } from '../lib/presets';
 
 export interface LoadedConfig {
   config: TransparencyConfig;
@@ -19,19 +21,17 @@ import AlphaSlider from '../components/AlphaSlider';
 import FourZoneDisplay, { type Zone } from '../components/FourZoneDisplay';
 import ValidityDashboard from '../components/ValidityDashboard';
 import SwatchReadout from '../components/SwatchReadout';
+import TransparencyReadouts from '../components/TransparencyReadouts';
 
 type Mode = 'forward' | 'inverse';
 
-// A compelling shared-subordinate example (quality ≈ 93/100), found by
-// searching the engine — so the studio opens on a genuinely valid transparency.
-const seed = {
-  A: { r: 221, g: 20, b: 66 } as RGB, // crimson
-  B: { r: 11, g: 160, b: 228 } as RGB, // sky blue
-  t: { r: 243, g: 113, b: 114 } as RGB, // coral veil
-  alpha: 0.625,
-  P: { r: 229, g: 55, b: 84 } as RGB, // veil over crimson
-  Q: { r: 98, g: 142, b: 185 } as RGB, // veil over blue
-};
+// Garau's own case (pl. 35), in the colours of his circle: a red veil over
+// yellow and blue, clear enough to read shared subordinate (P = rY, Q = rB).
+const seed = (() => {
+  const { A, B, t, alpha } = presetToConfig(STUDIES[0]!);
+  const { P, Q } = computeForward(A, B, t, alpha);
+  return { A, B, t, alpha, P, Q };
+})();
 
 function Button({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
@@ -195,26 +195,18 @@ export default function Composer({ loaded, onSave }: Props) {
           </div>
         </div>
 
-        {/* Quality + juxtaposition */}
+        {/* Garau's two readouts + juxtaposition */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="rounded-md border border-line bg-panel p-4">
-            <div className="mb-1 flex items-baseline justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted">Transparency quality</span>
-              <span className="font-mono text-sm text-ink">{report.transparencyQuality.toFixed(0)}/100</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-line">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${report.transparencyQuality}%`,
-                  backgroundColor: report.transparencyQuality > 66 ? '#4E7A51' : report.transparencyQuality > 40 ? '#B0873E' : '#B4534B',
-                }}
-              />
-            </div>
+            <TransparencyReadouts
+              degree={report.degreeOfTransparency}
+              balance={report.balance}
+              emptyNote="No common veil colour in P and Q, and they are not two tertiaries: neither readout applies."
+            />
           </div>
           <div className="rounded-md border border-line bg-panel p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted">Juxtaposition</div>
-            <div className="mt-1 text-sm font-semibold text-ink">{juxtaposition.type}</div>
+            <div className="mt-1 text-sm font-semibold text-ink">{pairLabel(juxtaposition)}</div>
             <span
               className="mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold"
               style={{

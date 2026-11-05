@@ -31,8 +31,8 @@ function configToPreset(config: TransparencyConfig): Preset {
     B: rgbToHex(config.B),
     t: rgbToHex(config.t),
     alpha: config.alpha,
-    jt: report.juxtapositionType ?? 'Partial Inversion',
-    quality: Math.round(report.transparencyQuality),
+    jt: report.juxtapositionType,
+    degree: report.degreeOfTransparency,
   };
 }
 

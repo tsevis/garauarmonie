@@ -22,6 +22,11 @@ export type {
   JuxtapositionType,
   HarmonyCategory,
   JuxtapositionAnalysis,
+  TertiaryJuxtaposition,
+  NonTertiaryPair,
+  NonTertiaryRelation,
+  TransparencyDegree,
+  BalanceReading,
   TransparencyConfig,
   MetelliResult,
   ValidationReport,
@@ -31,6 +36,8 @@ export {
   rgb,
   rgbToNormalized,
   normalizedToRgb,
+  rgbToLinear,
+  linearToRgb,
   rgbToHsl,
   hslToRgb,
   rgbToLab,
@@ -64,16 +71,35 @@ export {
   computeDesigner,
   suggestTransparencyCoefficient,
   suggestTransparentColor,
+  DA_POS_ALPHA_TOLERANCE,
 } from './metelli.js';
 
 export {
   analyzeVisualMixture,
-  classifyJuxtaposition,
   getComplementaryMixture,
   findSharedSubordinatePartner,
   normalizeHue,
   hueDistance,
+  oklchHueToRyb,
+  rybToOklchHue,
+  isTertiary,
+  mixtureComponents,
+  ACHROMATIC_CHROMA,
+  GARAU_CIRCLE,
+  garauDiskPlace,
+  garauDiskColour,
 } from './visualMixture.js';
+export type { GarauCircleColour } from './visualMixture.js';
+
+export {
+  classifyJuxtaposition,
+  pairLabel,
+  roleOf,
+  sharedColours,
+  degreeFromRoles,
+} from './juxtaposition.js';
+
+export type { ColourRole } from './juxtaposition.js';
 
 export {
   validateTransparency,

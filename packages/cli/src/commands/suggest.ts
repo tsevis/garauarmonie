@@ -22,9 +22,14 @@ const LABELS: readonly string[] = [
   'darker',
 ];
 
+/** Valid candidates first, then by balance; the book gives no single quality scale. */
+const VALID_FIRST = 1000;
+const rank = (e: { readonly valid: boolean; readonly balance: number | null }): number =>
+  (e.valid ? VALID_FIRST : 0) + (e.balance ?? 0);
+
 export const suggestCommand: Command = {
   name: 'suggest',
-  summary: 'Propose veil colours for two backgrounds, ranked by quality.',
+  summary: 'Propose veil colours for two backgrounds, valid and balanced first.',
   usage: USAGE,
   details: [
     'Explores around the perceptual midpoint of A and B in LCH, then scores',
@@ -48,7 +53,8 @@ export const suggestCommand: Command = {
           label: LABELS[index] ?? `candidate ${index + 1}`,
           ...colorInfo(t),
           notation: analyzeVisualMixture(t).notation,
-          quality: report.transparencyQuality,
+          degree: report.degreeOfTransparency,
+          balance: report.balance?.score ?? null,
           valid: report.overallValid,
           P: colorInfo(forward.P),
           Q: colorInfo(forward.Q),
@@ -56,7 +62,7 @@ export const suggestCommand: Command = {
       };
     });
 
-    const ranked = [...candidates].sort((a, b) => b.entry.quality - a.entry.quality);
+    const ranked = [...candidates].sort((a, b) => rank(b.entry) - rank(a.entry));
 
     return {
       json: {
@@ -72,7 +78,7 @@ export const suggestCommand: Command = {
         heading(`Veil candidates at alpha ${percent(alpha)}`, ctx.color),
         ...ranked.map(
           ({ color, entry }) =>
-            `  ${chip(color, ctx.color)}${entry.hex}  ${entry.notation.padEnd(4)} ${score(entry.quality).padStart(7)}  ${entry.valid ? 'valid  ' : 'invalid'}  ${entry.label}`,
+            `  ${chip(color, ctx.color)}${entry.hex}  ${entry.notation.padEnd(4)} ${(entry.balance === null ? '-' : score(entry.balance)).padStart(7)}  ${(entry.degree ?? '-').padEnd(16)}  ${entry.valid ? 'valid  ' : 'invalid'}  ${entry.label}`,
         ),
       ],
     };
