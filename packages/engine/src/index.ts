@@ -109,3 +109,12 @@ export {
 export { checkMetelliConditions } from './metelliConditions.js';
 
 export type { MetelliConditions } from './metelliConditions.js';
+
+export { borderRelation, canCrown, explainBorder, solveContinuum } from './continuum.js';
+export type {
+  BorderRelation,
+  ContinuumBorder,
+  ContinuumGraph,
+  ContinuumPlan,
+  ContinuumSolution,
+} from './continuum.js';
