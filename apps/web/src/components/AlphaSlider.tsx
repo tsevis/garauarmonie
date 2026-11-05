@@ -4,8 +4,9 @@ interface Props {
 }
 
 /**
- * Transparency coefficient α. 0 = fully transparent (figure vanishes),
- * 1 = fully opaque (figure hides the backgrounds).
+ * Metelli's photometric α, in linear light: the share of the ground that
+ * shows through the veil. 0 = opaque veil (overlaps equal t), 1 = clear
+ * (overlaps equal the backgrounds).
  */
 export default function AlphaSlider({ value, onChange }: Props) {
   return (
@@ -26,8 +27,8 @@ export default function AlphaSlider({ value, onChange }: Props) {
         className="w-full"
       />
       <div className="flex justify-between text-[10px] text-muted">
-        <span>transparent</span>
-        <span>opaque</span>
+        <span>opaque veil</span>
+        <span>clear</span>
       </div>
     </div>
   );

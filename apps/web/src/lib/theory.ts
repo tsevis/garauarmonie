@@ -14,7 +14,8 @@ export type FigureKind =
   | 'metelliMath'
   | 'chromaticScission'
   | 'tenConditions'
-  | 'juxtapositions';
+  | 'juxtapositions'
+  | 'garauCircle';
 
 export interface Term {
   term: string;
@@ -31,6 +32,8 @@ export interface Chapter {
   body?: string[];
   figure?: FigureKind;
   figureCaption?: string;
+  /** A signed personal note shown under the figure. */
+  note?: { text: string[]; by: string };
   terms?: Term[];
 }
 
@@ -77,13 +80,13 @@ export const CHAPTERS: Chapter[] = [
     summary:
       'For achromatic displays, Metelli showed that the overlap is a weighted average of the veil and the background — the model of an episcotister, a spinning sectored disk whose blur fuses two lightnesses. Per channel: P = α·A + (1−α)·t and Q = α·B + (1−α)·t.',
     body: [
-      'The coefficient α is the share of the background that shows through: at α = 0 the veil is invisible and the overlaps simply equal the veil colour, at α = 1 it is fully opaque and the overlaps equal the backgrounds. A genuine transparency lives strictly between. Because the same average runs independently on the red, green and blue channels, the equations extend directly to colour.',
+      'The coefficient α is the share of the background that shows through: at α = 0 the veil is opaque and the overlaps simply equal the veil colour, at α = 1 the veil is gone and the overlaps equal the backgrounds. A genuine transparency lives strictly between. α is photometric — the open fraction of the episcotister, which by Talbot’s law averages light — so the studio computes the average in linear light, not on gamma-encoded screen values: a half-open black veil over white gives half the luminance. The same average runs independently on the red, green and blue channels, so the equations extend directly to colour.',
       'The relationship is reversible. Given the two backgrounds and the two overlaps, one can recover the veil colour and α — the basis of the Composer’s Inverse mode. But averaging is only a necessary condition: two displays with identical arithmetic can differ in whether they actually look transparent, which is where Garau’s chromatic structure enters.',
     ],
     figure: 'metelliMath',
     figureCaption: 'Move the sliders — the equations and the four zones update together.',
     terms: [
-      { term: 'α (alpha)', def: 'The transparency coefficient: 0 is fully transparent, 1 fully opaque.' },
+      { term: 'α (alpha)', def: 'Metelli’s photometric transparency coefficient, in linear light: the share of the ground that shows through — 1 is clear, 0 an opaque veil.' },
       { term: 'Episcotister', def: 'A rotating sectored disk whose blur fuses two lightnesses — Metelli’s physical analogue of a transparent layer.' },
       { term: 'Scission', def: 'The splitting of one perceived colour into a background component and a veil component.' },
     ],
@@ -107,8 +110,29 @@ export const CHAPTERS: Chapter[] = [
     ],
   },
   {
-    id: 'ten-conditions',
+    id: 'circle',
     n: 5,
+    title: "Garau's colour circle",
+    summary:
+      'Garau orders his colours on a circle with yellow, the lightest, at the top and violet, the darkest, at the bottom. Down either side, from yellow through red or through blue to violet, every step is the same step in hue and in lightness.',
+    body: [
+      'Twelve colours make the circle: the three primaries, the three balanced secondaries and the six tertiaries between them. The ones here are taken from the cover of Le armonie del colore (1984), with each tertiary halfway between its neighbours, and they are the colours this app reads every hue against.',
+      'The ladder shows the same circle opened out. Each row is one step of lightness, the same on both sides: yellow at the top of both columns, violet at the bottom, the warm side on the right and the cool side on the left.',
+    ],
+    figure: 'garauCircle',
+    figureCaption: 'The same twelve colours as a ladder, as a circle, and in the arrangement of the cover.',
+    note: {
+      text: [
+        'For Garau the circle was a staircase. Every step down, from yellow to violet on either side, had to be the same step in hue and in lightness, like the treads of a stair: no sudden change anywhere, because an uneven step is where you trip.',
+        'He was absolute about it, and so strict that we would mix the colours exactly as he held them to be. Among ourselves we thought him rather authoritarian. He only wanted to give us a very solid, logical ground for colour.',
+        'On the last day he told us to tear up our circles and our ladders, and to make our own colours, freely. A unique teacher.',
+      ],
+      by: 'Charis Tsevis, his student in Milan, 1990–92',
+    },
+  },
+  {
+    id: 'ten-conditions',
+    n: 6,
     title: 'The conditions for transparency',
     summary:
       "A convincing chromatic transparency has to satisfy Metelli's lightness conditions and Garau's chromatic ones together. Edit a display below and watch each condition hold or fail in real time.",
@@ -121,7 +145,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'juxtapositions',
-    n: 6,
+    n: 7,
     title: 'The four juxtapositions',
     summary:
       'When two colours meet, they relate through the primaries they share and the ones they diverge on. Garau, following Arnheim, distinguishes four cases and groups them into balanced concord and unbalanced discord — the harmonic backbone of the whole theory.',
@@ -141,7 +165,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'additive-subtractive',
-    n: 7,
+    n: 8,
     title: 'Additive, not subtractive',
     summary:
       'The averaging that governs transparency behaves additively — like overlapping lights or the temporal fusion of an episcotister — not like the subtractive mixing of physical pigments. This is why the computed mean predicts the colour the eye actually sees in the overlap.',
@@ -152,7 +176,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'multiple',
-    n: 8,
+    n: 9,
     title: 'Multiple transparencies',
     summary:
       'Veils can be stacked into an ordered sequence of depth planes. Each added layer must satisfy the transparency conditions against everything already beneath it, and the sequence of juxtaposition types sets the felt order of the stacking.',
@@ -162,7 +186,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'anomalous',
-    n: 9,
+    n: 10,
     title: 'An anomalous case',
     summary:
       'Garau closes with a case that strains the simple model: a display can still be seen as transparent even when the perceived background colour is not the one a strict average would require. The impression survives the departure from the arithmetic.',
@@ -172,7 +196,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     id: 'painting',
-    n: 10,
+    n: 11,
     title: 'Transparency in painting',
     summary:
       'The same structural relations painters use to bind and separate colours in the flat plane also govern transparency in depth. Garau reads works by Cézanne, Picasso, Matisse and modern colourists to show deliberate juxtapositions and veils carrying pictorial meaning.',

@@ -4,6 +4,7 @@ import { rgbToCss, contrastText } from '../lib/color';
 import { PRIMARY_NAME, describeMixture, mixtureType } from '../lib/garau';
 
 const TYPE_COLOR: Record<string, string> = {
+  Achromatic: '#8E8E8E',
   Pure: '#6B6660',
   Balanced: '#B0873E',
   Unbalanced: '#4E7A51',
@@ -63,6 +64,7 @@ export default function MixtureReadout({ color, onPick }: { color: RGB; onPick?:
       </div>
 
       {/* Dominant / subordinate proportion */}
+      {!m.isAchromatic && (
       <div>
         <div className="mb-1 flex justify-between text-[11px] font-semibold uppercase tracking-wide text-muted">
           <span>Dominant · {PRIMARY_NAME[m.dominant]}</span>
@@ -79,6 +81,7 @@ export default function MixtureReadout({ color, onPick }: { color: RGB; onPick?:
           )}
         </div>
       </div>
+      )}
 
       {/* Splittability */}
       <div>

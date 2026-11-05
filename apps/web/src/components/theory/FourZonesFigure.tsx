@@ -2,10 +2,11 @@ import { useState } from 'react';
 import type { RGB } from '@garau/engine';
 import { computeForward } from '@garau/engine';
 import FourZoneDisplay from '../FourZoneDisplay';
+import { garau } from '../../lib/garauColour';
 
-const A: RGB = { r: 214, g: 40, b: 74 };
-const B: RGB = { r: 30, g: 150, b: 214 };
-const t: RGB = { r: 244, g: 214, b: 96 };
+const A: RGB = garau('R');
+const B: RGB = garau('B');
+const t: RGB = garau('Y');
 const ALPHA = 0.55;
 
 export default function FourZonesFigure() {

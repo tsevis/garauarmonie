@@ -80,6 +80,20 @@ const gammaToLinear = (c: number): number =>
 const linearToGamma = (c: number): number =>
   c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055;
 
+/**
+ * sRGB to linear light, channels 0–1. Metelli's α is photometric (Talbot's
+ * law, the episcotister): it averages light, so the model runs on these values.
+ */
+export function rgbToLinear(c: RGB): NormalizedRGB {
+  return { r: gammaToLinear(c.r / 255), g: gammaToLinear(c.g / 255), b: gammaToLinear(c.b / 255) };
+}
+
+/** Linear light (0–1, clamped) back to 8-bit sRGB for display. */
+export function linearToRgb(c: NormalizedRGB): RGB {
+  const enc = (v: number): number => linearToGamma(clamp(v)) * 255;
+  return rgb(enc(c.r), enc(c.g), enc(c.b));
+}
+
 // D65 reference white.
 const Xn = 0.95047;
 const Yn = 1.0;

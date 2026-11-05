@@ -5,6 +5,7 @@ import ColorField from '../ColorField';
 import AlphaSlider from '../AlphaSlider';
 import FourZoneDisplay from '../FourZoneDisplay';
 import { rgbToCss } from '../../lib/color';
+import { garau } from '../../lib/garauColour';
 
 function Chip({ c, label }: { c: RGB; label: string }) {
   return (
@@ -16,9 +17,9 @@ function Chip({ c, label }: { c: RGB; label: string }) {
 }
 
 export default function MetelliMathFigure() {
-  const [A, setA] = useState<RGB>({ r: 214, g: 40, b: 74 });
-  const [B, setB] = useState<RGB>({ r: 30, g: 150, b: 214 });
-  const [t, setT] = useState<RGB>({ r: 244, g: 214, b: 96 });
+  const [A, setA] = useState<RGB>(garau('R'));
+  const [B, setB] = useState<RGB>(garau('B'));
+  const [t, setT] = useState<RGB>(garau('Y'));
   const [alpha, setAlpha] = useState(0.5);
   const { P, Q } = useMemo(() => computeForward(A, B, t, alpha), [A, B, t, alpha]);
 

@@ -5,13 +5,14 @@ import ColorField from '../ColorField';
 import AlphaSlider from '../AlphaSlider';
 import FourZoneDisplay from '../FourZoneDisplay';
 import ValidityDashboard from '../ValidityDashboard';
+import { garau } from '../../lib/garauColour';
 
 export default function TenConditionsFigure() {
   // Opens on a valid transparency; edit any input to see conditions fail.
-  const [A, setA] = useState<RGB>({ r: 221, g: 20, b: 66 });
-  const [B, setB] = useState<RGB>({ r: 11, g: 160, b: 228 });
-  const [t, setT] = useState<RGB>({ r: 243, g: 113, b: 114 });
-  const [alpha, setAlpha] = useState(0.5);
+  const [A, setA] = useState<RGB>(garau('Y'));
+  const [B, setB] = useState<RGB>(garau('B'));
+  const [t, setT] = useState<RGB>(garau('R'));
+  const [alpha, setAlpha] = useState(0.75); // Garau's thin red veil over yellow and blue: a shared subordinate
 
   const { P, Q } = useMemo(() => computeForward(A, B, t, alpha), [A, B, t, alpha]);
   const report = useMemo(() => validateTransparency(A, B, P, Q, t, alpha), [A, B, P, Q, t, alpha]);

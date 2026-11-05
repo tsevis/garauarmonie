@@ -13,6 +13,7 @@
     "test:engine": "npm run test --workspace @garau/engine",
     "test:swatches": "npm run test --workspace @garau/swatches",
     "test:cli": "npm run test --workspace @garau/cli",
+    "test:web": "npm run test --workspace web",
     "dev": "npm run dev --workspace web"
   },
   "license": "MIT"

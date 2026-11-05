@@ -1,7 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { RGB } from '@garau/engine';
-import { rgbToHsl, hslToRgb } from '@garau/engine';
 import { rgbToCss, contrastText } from '../lib/color';
+import { ANCHORS, diskColour, diskPosition } from '../lib/rybDisk';
+import { CX, CY, LABEL_GAP, R, VIEW, toXY } from '../lib/diskGeometry';
+import { Cover, Ladder } from './GarauCircleViews';
+import { GARAU_GREY, ON_GREY_MUTED } from '../lib/garauColour';
 
 export interface DiskMarker {
   color: RGB;
@@ -12,31 +15,8 @@ interface Props {
   markers: DiskMarker[];
   /** Called with a new color when the user clicks inside the disk. */
   onPick?: (color: RGB) => void;
-  /** Lightness (0–100) to hold constant when picking. Defaults to 55. */
-  pickLightness?: number;
   size?: number;
 }
-
-const VB = 320; // viewBox units
-const CX = VB / 2;
-const CY = VB / 2;
-const R = 150;
-
-// Garau's three primaries and three balanced secondaries, at the engine's hue angles.
-const ANCHORS: { hue: number; label: string }[] = [
-  { hue: 0, label: 'R' },
-  { hue: 30, label: 'RY' },
-  { hue: 60, label: 'Y' },
-  { hue: 150, label: 'YB' },
-  { hue: 240, label: 'B' },
-  { hue: 270, label: 'BR' },
-];
-
-// Math-convention placement: 0° at right (east), increasing counter-clockwise.
-const toXY = (hue: number, radius: number): [number, number] => {
-  const rad = (hue * Math.PI) / 180;
-  return [CX + radius * Math.cos(rad), CY - radius * Math.sin(rad)];
-};
 
 function sector(a0: number, a1: number): string {
   const [x1, y1] = toXY(a0, R);
@@ -45,30 +25,32 @@ function sector(a0: number, a1: number): string {
 }
 
 const STEP = 5;
-const SECTORS = Array.from({ length: 360 / STEP }, (_, i) => i * STEP);
+// Garau's RYB disk, painted by the engine's own hue mapping (see lib/rybDisk).
+const SECTORS = Array.from({ length: 360 / STEP }, (_, i) => ({
+  angle: i * STEP,
+  fill: rgbToCss(diskColour(i * STEP + STEP / 2, 1)),
+}));
 
-export default function ChromaticDisk({ markers, onPick, pickLightness = 55, size = 300 }: Props) {
+function ContinuousDisk({ markers, onPick, size = 300 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!onPick || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const mx = ((e.clientX - rect.left) / rect.width) * VB;
-    const my = ((e.clientY - rect.top) / rect.height) * VB;
+    const mx = VIEW.x + ((e.clientX - rect.left) / rect.width) * VIEW.size;
+    const my = VIEW.y + ((e.clientY - rect.top) / rect.height) * VIEW.size;
     const dx = mx - CX;
     const dy = CY - my; // invert to math convention
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > R) return; // outside the disk
-    let hue = (Math.atan2(dy, dx) * 180) / Math.PI;
-    hue = (hue + 360) % 360;
-    const sat = Math.min(100, (dist / R) * 100);
-    onPick(hslToRgb({ h: hue, s: sat, l: pickLightness }));
+    const angle = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
+    onPick(diskColour(angle, dist / R));
   };
 
   return (
     <svg
       ref={svgRef}
-      viewBox={`0 0 ${VB} ${VB}`}
+      viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.size} ${VIEW.size}`}
       width={size}
       height={size}
       className={`mx-auto block ${onPick ? 'cursor-crosshair' : ''}`}
@@ -76,16 +58,16 @@ export default function ChromaticDisk({ markers, onPick, pickLightness = 55, siz
     >
       <defs>
         <radialGradient id="diskFade" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#FBFAF8" stopOpacity="0.95" />
-          <stop offset="42%" stopColor="#FBFAF8" stopOpacity="0.25" />
-          <stop offset="70%" stopColor="#FBFAF8" stopOpacity="0" />
+          <stop offset="0%" stopColor={GARAU_GREY} stopOpacity="0.95" />
+          <stop offset="42%" stopColor={GARAU_GREY} stopOpacity="0.25" />
+          <stop offset="70%" stopColor={GARAU_GREY} stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      {/* Hue wheel */}
+      {/* RYB disk */}
       <g>
-        {SECTORS.map((a) => (
-          <path key={a} d={sector(a, a + STEP)} fill={`hsl(${a + STEP / 2}, 82%, 55%)`} />
+        {SECTORS.map(({ angle, fill }) => (
+          <path key={angle} d={sector(angle, angle + STEP)} fill={fill} />
         ))}
       </g>
       {/* Desaturation toward the center */}
@@ -94,9 +76,9 @@ export default function ChromaticDisk({ markers, onPick, pickLightness = 55, siz
 
       {/* Primary / secondary anchor ticks and labels */}
       <g pointerEvents="none">
-        {ANCHORS.map(({ hue, label }) => {
-          const [lx, ly] = toXY(hue, R + 16);
-          const [tx, ty] = toXY(hue, R);
+        {ANCHORS.map(({ angle, label }) => {
+          const [lx, ly] = toXY(angle, R + LABEL_GAP);
+          const [tx, ty] = toXY(angle, R);
           const isPrimary = label.length === 1;
           return (
             <g key={label}>
@@ -108,7 +90,7 @@ export default function ChromaticDisk({ markers, onPick, pickLightness = 55, siz
                 fontFamily="'IBM Plex Mono', monospace"
                 fontSize={isPrimary ? 15 : 11}
                 fontWeight={isPrimary ? 700 : 500}
-                fill={isPrimary ? '#1F1D1A' : '#6B6660'}
+                fill={isPrimary ? '#1F1D1A' : ON_GREY_MUTED}
               >
                 {label}
               </text>
@@ -120,8 +102,8 @@ export default function ChromaticDisk({ markers, onPick, pickLightness = 55, siz
       {/* Plotted color markers */}
       <g pointerEvents="none">
         {markers.map((m, i) => {
-          const hsl = rgbToHsl(m.color);
-          const [x, y] = toXY(hsl.h, (hsl.s / 100) * R);
+          const pos = diskPosition(m.color);
+          const [x, y] = toXY(pos.angle, pos.radius * R);
           return (
             <g key={i}>
               <circle cx={x} cy={y} r={14} fill={rgbToCss(m.color)} stroke="#FBFAF8" strokeWidth={2.5} />
@@ -142,5 +124,36 @@ export default function ChromaticDisk({ markers, onPick, pickLightness = 55, siz
         })}
       </g>
     </svg>
+  );
+}
+
+type View = 'disk' | 'ladder' | 'cover';
+const VIEWS: ReadonlyArray<readonly [View, string]> = [
+  ['disk', 'Disk'],
+  ['ladder', 'Ladder'],
+  ['cover', 'As on the cover'],
+];
+
+/** Garau's disk, with his ladder and the cover's circle as two other views of the same twelve colours. */
+export default function ChromaticDisk({ markers, onPick, size = 300 }: Props) {
+  const [view, setView] = useState<View>('disk');
+  return (
+    <div style={{ width: size }} className="mx-auto space-y-3">
+      <div className="flex justify-center gap-1">
+        {VIEWS.map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-xs px-2.5 py-1 text-xs ${view === v ? 'bg-ink text-paper' : 'text-ink/75 hover:text-ink'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === 'disk' && <ContinuousDisk markers={markers} onPick={onPick} size={size} />}
+      {view === 'ladder' && <Ladder markers={markers} onPick={onPick} size={size} />}
+      {view === 'cover' && <Cover markers={markers} onPick={onPick} size={size} />}
+    </div>
   );
 }

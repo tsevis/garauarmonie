@@ -4,26 +4,60 @@
  * Transparency perception depends on *visual* chromatic mixtures, not physical
  * ones. Any color is decomposed into a dominant primary (R, Y, or B) and an
  * optional subordinate, with a mixture ratio and Garau notation (e.g. "rB").
- * Color pairs are classified into Arnheim's four juxtaposition types.
+ * Pairs of colours are classified in `juxtaposition.ts`.
  *
  * Ported from `reference/python-engine/color_engine/visual_mixture.py`.
  */
 
-import type {
-  RGB,
-  LCH,
-  DominantPrimary,
-  GarauMixture,
-  JuxtapositionType,
-  HarmonyCategory,
-  JuxtapositionAnalysis,
-} from './types.js';
-import { rgbToHsl, rgbToLch, lchToRgb } from './conversions.js';
+import type { RGB, DominantPrimary, GarauMixture } from './types.js';
+import { rgbToHsl, hexToRgb } from './conversions.js';
+import { rgbToOklch, oklchToRgb } from './oklab.js';
 
-// Garau's three primaries on the continuous hue circle.
-const PRIMARY_HUES: Record<DominantPrimary, number> = { R: 0, Y: 60, B: 240 };
-// Secondary (balanced) mixtures: RY = orange, YB = green, BR = violet.
-const SECONDARY_HUES: Record<string, number> = { RY: 30, YB: 150, BR: 270 };
+// Garau reads colour on the yellow-red-blue disk of the painters (Klee, Itten),
+// with R, Y and B 120 degrees apart and each secondary halfway between two
+// primaries. Hue is read in OKLCH, which is close to perceptually even, and
+// mapped piecewise onto that disk through Garau's own twelve colours: the
+// principals sampled from the cover of Le armonie del colore (1984), the
+// tertiaries between them, with yellow the lightest, violet the darkest and
+// every step down either side equal in hue and lightness.
+export interface GarauCircleColour {
+  readonly notation: string;
+  readonly hex: string;
+  /** Place on the RYB disk: R = 0, Y = 120, B = 240. */
+  readonly ryb: number;
+}
+
+export const GARAU_CIRCLE: readonly GarauCircleColour[] = [
+  { notation: 'R', hex: '#C84650', ryb: 0 },
+  { notation: 'yR', hex: '#ED5D2F', ryb: 30 },
+  { notation: 'RY', hex: '#F9892C', ryb: 60 },
+  { notation: 'rY', hex: '#FFB33B', ryb: 90 },
+  { notation: 'Y', hex: '#FFDC56', ryb: 120 },
+  { notation: 'bY', hex: '#C0CE69', ryb: 150 },
+  { notation: 'YB', hex: '#84BB81', ryb: 180 },
+  { notation: 'yB', hex: '#5AA097', ryb: 210 },
+  { notation: 'B', hex: '#567F9A', ryb: 240 },
+  { notation: 'rB', hex: '#5E5C8A', ryb: 270 },
+  { notation: 'BR', hex: '#623D5D', ryb: 300 },
+  { notation: 'bR', hex: '#95435D', ryb: 330 },
+];
+
+const PRIMARY_RYB: Record<DominantPrimary, number> = { R: 0, Y: 120, B: 240 };
+// Balanced secondaries, written in one fixed order.
+const SECONDARY_NOTATION: Record<string, string> = { RY: 'RY', YR: 'RY', YB: 'YB', BY: 'YB', BR: 'BR', RB: 'BR' };
+
+/**
+ * Subordinate share below which a colour reads as a pure primary. On the RYB
+ * disk this is 12 degrees from the primary; a 2:1 tertiary sits at 1/3.
+ */
+const PURE_RATIO = 0.1;
+
+/** Below this OKLCH chroma a colour reads as grey: no hue to split. */
+export const ACHROMATIC_CHROMA = 0.025;
+
+const ANCHOR_HUES: ReadonlyArray<readonly [oklchHue: number, rybAngle: number]> = GARAU_CIRCLE.map(
+  ({ hex, ryb }) => [rgbToOklch(hexToRgb(hex)).h, ryb] as const,
+);
 
 export function normalizeHue(h: number): number {
   return ((h % 360) + 360) % 360;
@@ -36,65 +70,45 @@ export function hueDistance(h1: number, h2: number): number {
   return Math.min(diff, 360 - diff);
 }
 
-function determineDominant(hue: number): DominantPrimary {
+/** Map an OKLCH hue onto the RYB disk (R = 0, Y = 120, B = 240). */
+export function oklchHueToRyb(hue: number): number {
   const h = normalizeHue(hue);
-  const primaries = Object.keys(PRIMARY_HUES) as DominantPrimary[];
-  let best = primaries[0]!;
-  let bestDist = Infinity;
+  for (let i = 0; i < ANCHOR_HUES.length; i++) {
+    const [h0, a0] = ANCHOR_HUES[i]!;
+    const [h1, a1] = ANCHOR_HUES[(i + 1) % ANCHOR_HUES.length]!;
+    const span = normalizeHue(h1 - h0);
+    const offset = normalizeHue(h - h0);
+    if (offset <= span) {
+      const arc = normalizeHue(a1 - a0) || 360;
+      return normalizeHue(a0 + (offset / span) * arc);
+    }
+  }
+  return 0; // unreachable: the anchors close the circle
+}
+
+interface RybReading {
+  readonly dominant: DominantPrimary;
+  readonly subordinate: DominantPrimary | null;
+  /** Share of the subordinate: 0 = pure, 0.5 = balanced. */
+  readonly ratio: number;
+}
+
+/** Dominant = nearest primary on the disk; subordinate = the side the hue lies on. */
+function readRyb(rybAngle: number): RybReading {
+  const primaries = Object.keys(PRIMARY_RYB) as DominantPrimary[];
+  let dominant = primaries[0]!;
+  let signed = Infinity;
   for (const p of primaries) {
-    const d = hueDistance(h, PRIMARY_HUES[p]);
-    if (d < bestDist) {
-      bestDist = d;
-      best = p;
+    const d = ((rybAngle - PRIMARY_RYB[p] + 540) % 360) - 180;
+    if (Math.abs(d) < Math.abs(signed)) {
+      signed = d;
+      dominant = p;
     }
   }
-  return best;
-}
-
-function determineSubordinate(hue: number, dominant: DominantPrimary): DominantPrimary | null {
-  const h = normalizeHue(hue);
-  if (hueDistance(h, PRIMARY_HUES[dominant]) < 10) return null;
-
-  const relevant = Object.entries(SECONDARY_HUES).filter(([name]) => name.includes(dominant));
-  if (relevant.length === 0) return null;
-
-  let closest = relevant[0]![0];
-  let closestDist = Infinity;
-  for (const [name, secHue] of relevant) {
-    const d = hueDistance(h, secHue);
-    if (d < closestDist) {
-      closestDist = d;
-      closest = name;
-    }
-  }
-  for (const ch of closest) {
-    if (ch !== dominant) return ch as DominantPrimary;
-  }
-  return null;
-}
-
-function mixtureRatio(
-  hue: number,
-  dominant: DominantPrimary,
-  subordinate: DominantPrimary | null,
-): number {
-  if (subordinate === null) return 0;
-  const h = normalizeHue(hue);
-  const domHue = PRIMARY_HUES[dominant];
-  const subHue = PRIMARY_HUES[subordinate];
-
-  let secHue = (domHue + subHue) / 2;
-  if (Math.abs(domHue - subHue) > 180) secHue = normalizeHue((domHue + subHue + 360) / 2);
-
-  const distFromDom = hueDistance(h, domHue);
-  const distToSec = hueDistance(h, secHue);
-  const secToDom = hueDistance(secHue, domHue);
-  const secToSub = hueDistance(secHue, subHue);
-
-  let ratio: number;
-  if (distFromDom <= secToDom) ratio = distFromDom / (2 * secToDom);
-  else ratio = 0.5 + distToSec / (2 * secToSub);
-  return Math.min(1, Math.max(0, ratio));
+  if (Math.abs(signed) < 1e-9) return { dominant, subordinate: null, ratio: 0 };
+  const towards = normalizeHue(PRIMARY_RYB[dominant] + Math.sign(signed) * 120);
+  const subordinate = primaries.find((p) => PRIMARY_RYB[p] === towards) ?? null;
+  return { dominant, subordinate, ratio: Math.min(0.5, Math.abs(signed) / 120) };
 }
 
 function garauNotation(
@@ -102,14 +116,14 @@ function garauNotation(
   subordinate: DominantPrimary | null,
   ratio: number,
 ): string {
-  if (subordinate === null || ratio < 0.15) return dominant;
-  if (ratio >= 0.4 && ratio <= 0.6) return `${dominant}${subordinate}`; // balanced
+  if (subordinate === null || ratio < PURE_RATIO) return dominant;
+  if (ratio >= 0.4 && ratio <= 0.6) return SECONDARY_NOTATION[`${dominant}${subordinate}`]!; // balanced
   if (ratio < 0.5) return `${subordinate.toLowerCase()}${dominant}`; // subordinate prefix
   return `${dominant.toLowerCase()}${subordinate}`; // inverted
 }
 
 const isPure = (subordinate: DominantPrimary | null, ratio: number): boolean =>
-  subordinate === null || ratio < 0.15;
+  subordinate === null || ratio < PURE_RATIO;
 
 const isBalanced = (ratio: number): boolean => ratio >= 0.4 && ratio <= 0.6;
 
@@ -122,151 +136,109 @@ function splittability(subordinate: DominantPrimary | null, ratio: number): numb
 /** Analyze a color as a visual mixture in Garau's framework. */
 export function analyzeVisualMixture(color: RGB): GarauMixture {
   const hsl = rgbToHsl(color);
-  const dominant = determineDominant(hsl.h);
-  const subordinate = determineSubordinate(hsl.h, dominant);
-  let ratio = mixtureRatio(hsl.h, dominant, subordinate);
-  if (hsl.s < 20) ratio = 0.5; // desaturated colors approach neutral/balanced
+  const oklch = rgbToOklch(color);
+  const base = { hueAngle: hsl.h, saturation: hsl.s, lightness: hsl.l };
 
+  if (oklch.C < ACHROMATIC_CHROMA) {
+    // Garau: an achromatic colour cannot be split into chromatic hues.
+    return {
+      ...base,
+      dominant: readRyb(oklchHueToRyb(oklch.h)).dominant,
+      subordinate: null,
+      ratio: 0,
+      notation: 'N',
+      isAchromatic: true,
+      isPure: false,
+      isBalanced: false,
+      splittability: 0,
+    };
+  }
+
+  const { dominant, subordinate, ratio } = readRyb(oklchHueToRyb(oklch.h));
   return {
+    ...base,
     dominant,
     subordinate,
     ratio,
     notation: garauNotation(dominant, subordinate, ratio),
-    hueAngle: hsl.h,
-    saturation: hsl.s,
-    lightness: hsl.l,
+    isAchromatic: false,
     isPure: isPure(subordinate, ratio),
     isBalanced: isBalanced(ratio),
     splittability: splittability(subordinate, ratio),
   };
 }
 
-// Garau's concord/discord grouping of the four juxtaposition types.
-const HARMONY_BY_TYPE: Record<JuxtapositionType, Exclude<HarmonyCategory, 'Neutral'>> = {
-  'Complete Inversion': 'Balanced concord',
-  'Shared Subordinate': 'Balanced concord',
-  'Shared Dominant': 'Unbalanced discord',
-  'Partial Inversion': 'Unbalanced discord',
-};
+/** A tertiary: an unbalanced two-primary mixture, the only colours the four juxtapositions relate. */
+export const isTertiary = (m: GarauMixture): boolean => !m.isAchromatic && !m.isPure && !m.isBalanced;
 
-const HARMONY_NOTE: Record<JuxtapositionType, string> = {
-  'Complete Inversion':
-    'Both colours invert the same two primaries and resolve to one secondary — a close, balanced bond.',
-  'Shared Subordinate':
-    'Between them the pair holds all three primaries in equal weight — complementary, the strongest bond.',
-  'Shared Dominant':
-    'The shared dominant is pulled toward two different subordinates — tension and detachment.',
-  'Partial Inversion':
-    'All three primaries are present with one role inverted — an asymmetrical clash.',
-};
-
-function deriveHarmony(
-  type: JuxtapositionType,
-  m1: GarauMixture,
-  m2: GarauMixture,
-): { harmony: HarmonyCategory; harmonyNote: string } {
-  // The concord/discord grouping describes pairs of tertiary mixtures. When a
-  // color is a pure primary, that grouping does not apply.
-  if (m1.isPure || m2.isPure) {
-    return {
-      harmony: 'Neutral',
-      harmonyNote:
-        'One colour reads as a pure primary; concord and discord describe pairs of tertiary mixtures.',
-    };
-  }
-  return { harmony: HARMONY_BY_TYPE[type], harmonyNote: HARMONY_NOTE[type] };
+/** The primaries a colour visibly contains: none if grey, one if pure, else two. */
+export function mixtureComponents(m: GarauMixture): readonly DominantPrimary[] {
+  if (m.isAchromatic) return [];
+  if (m.isPure || m.subordinate === null) return [m.dominant];
+  return [m.dominant, m.subordinate];
 }
 
-/** Classify a color pair into one of Arnheim's four juxtaposition types. */
-export function classifyJuxtaposition(c1: RGB, c2: RGB): JuxtapositionAnalysis {
-  const m1 = analyzeVisualMixture(c1);
-  const m2 = analyzeVisualMixture(c2);
-
-  let type: JuxtapositionType;
-  let description: string;
-  let transparencyQuality: number;
-  let recommendedCorrection: string | null = null;
-
-  if (m1.subordinate !== null && m2.subordinate !== null &&
-      m1.subordinate === m2.subordinate && m1.dominant !== m2.dominant) {
-    type = 'Shared Subordinate';
-    description =
-      `Both colours share ${m1.subordinate} as subordinate; the dominants ${m1.dominant} and ` +
-      `${m2.dominant} complete all three primaries, so the pair is complementary — a concord, and the most convincing veil.`;
-    transparencyQuality = 85 + 15 * (1 - Math.abs(m1.ratio - m2.ratio));
-  } else if (m1.dominant === m2.dominant && m1.subordinate !== m2.subordinate) {
-    type = 'Shared Dominant';
-    description =
-      `Both colours share ${m1.dominant} as dominant; the differing subordinates ${m1.subordinate} and ` +
-      `${m2.subordinate} pull the pair apart — a discordant tension, with the shared dominant carrying into the veil.`;
-    transparencyQuality = 60 + 20 * (1 - Math.abs(m1.ratio - m2.ratio));
-  } else if (m1.subordinate !== null && m2.subordinate !== null &&
-             m1.dominant === m2.subordinate && m1.subordinate === m2.dominant) {
-    type = 'Complete Inversion';
-    description =
-      `Complete inversion: ${m1.notation} and ${m2.notation} invert the same two primaries toward one ` +
-      'secondary — closely bonded (a concord), though as overlaps the two shared colours converge.';
-    transparencyQuality = 50;
-    recommendedCorrection =
-      'Adjust background colors to compensate for the inversion. ' +
-      'Consider asymmetric correction (Garau condition 7).';
-  } else if (m1.subordinate !== null && m2.subordinate !== null &&
-             (m1.dominant === m2.subordinate || m1.subordinate === m2.dominant)) {
-    type = 'Partial Inversion';
-    description =
-      `Partial inversion across all three primaries: ${m1.notation} and ${m2.notation} share one inverted ` +
-      'role — a strong, discordant divergence that is the hardest to read as a veil.';
-    transparencyQuality = 35;
-    recommendedCorrection =
-      'Carefully balance the background colors. Consider adjusting one color toward a ' +
-      'complete or shared relationship.';
-  } else {
-    const hueDiff = hueDistance(m1.hueAngle, m2.hueAngle);
-    if (hueDiff < 30) {
-      type = 'Shared Dominant';
-      description = `Colors are close in hue (${hueDiff.toFixed(1)}° apart). Treated as shared dominant.`;
-      transparencyQuality = 55;
-    } else if (hueDiff > 150) {
-      type = 'Shared Subordinate';
-      description = `Colors are nearly complementary (${hueDiff.toFixed(1)}° apart). Treated as shared subordinate.`;
-      transparencyQuality = 70;
-    } else {
-      type = 'Partial Inversion';
-      description = `Colors have a complex relationship (${hueDiff.toFixed(1)}° apart). No clear juxtaposition pattern.`;
-      transparencyQuality = 40;
-    }
-  }
-
-  const { harmony, harmonyNote } = deriveHarmony(type, m1, m2);
-
-  return {
-    type,
-    harmony,
-    harmonyNote,
-    color1Mixture: m1,
-    color2Mixture: m2,
-    transparencyQuality: Math.min(100, Math.max(0, transparencyQuality)),
-    description,
-    recommendedCorrection,
-  };
-}
-
-/** Complementary mixture: same subordinate, opposite hue — ideal shared-subordinate partner seed. */
+/**
+ * Complementary mixture: the colour opposite on Garau's disk, as far from the
+ * grey centre as the input. A colour of his circle gets the circle colour
+ * across from it (yR -> yB, Y -> BR).
+ */
 export function getComplementaryMixture(color: RGB): RGB {
-  const lch = rgbToLch(color);
-  return lchToRgb({ l: lch.l, c: lch.c, h: (lch.h + 180) % 360 } as LCH);
+  const { ryb, radius } = garauDiskPlace(color);
+  return garauDiskColour(ryb + 180, radius);
 }
 
-/** Find a color forming a shared-subordinate juxtaposition with the input. */
-export function findSharedSubordinatePartner(color: RGB): RGB {
-  const lch = rgbToLch(color);
-  const mixture = analyzeVisualMixture(color);
+const CIRCLE_STEP = 360 / GARAU_CIRCLE.length;
+const CIRCLE_OKLCH = GARAU_CIRCLE.map(({ hex }) => rgbToOklch(hexToRgb(hex)));
 
-  if (mixture.subordinate === null) {
-    return lchToRgb({ l: lch.l, c: lch.c * 0.8, h: (lch.h + 60) % 360 } as LCH);
+/** Lightness and chroma of Garau's circle at a place of the RYB disk, blended between the two nearest colours. */
+function circleAt(rybAngle: number): { L: number; C: number } {
+  const a = normalizeHue(rybAngle) / CIRCLE_STEP;
+  const i = Math.floor(a) % GARAU_CIRCLE.length;
+  const t = a - Math.floor(a);
+  const p = CIRCLE_OKLCH[i]!;
+  const q = CIRCLE_OKLCH[(i + 1) % GARAU_CIRCLE.length]!;
+  return { L: p.L + t * (q.L - p.L), C: p.C + t * (q.C - p.C) };
+}
+
+/** Where a colour sits on Garau's disk: its RYB angle, and its chroma as a fraction of the circle's there (0 grey, 1 rim). */
+export function garauDiskPlace(color: RGB): { ryb: number; radius: number } {
+  const o = rgbToOklch(color);
+  if (o.C < ACHROMATIC_CHROMA) return { ryb: 0, radius: 0 };
+  const ryb = oklchHueToRyb(o.h);
+  return { ryb, radius: Math.min(1, o.C / circleAt(ryb).C) };
+}
+
+/** The colour at a place of Garau's disk: his circle at the rim, fading to grey toward the centre. */
+export function garauDiskColour(rybAngle: number, radius: number): RGB {
+  const { L, C } = circleAt(rybAngle);
+  return oklchToRgb({ L, C: Math.max(0, Math.min(1, radius)) * C, h: rybToOklchHue(rybAngle) });
+}
+
+/** Inverse of `oklchHueToRyb`: the OKLCH hue at a point of the RYB disk. */
+export function rybToOklchHue(rybAngle: number): number {
+  const a = normalizeHue(rybAngle);
+  for (let i = 0; i < ANCHOR_HUES.length; i++) {
+    const [h0, a0] = ANCHOR_HUES[i]!;
+    const [h1, a1] = ANCHOR_HUES[(i + 1) % ANCHOR_HUES.length]!;
+    const arc = normalizeHue(a1 - a0) || 360;
+    const offset = normalizeHue(a - a0);
+    if (offset <= arc) return normalizeHue(h0 + (offset / arc) * normalizeHue(h1 - h0));
   }
-  const subHue = PRIMARY_HUES[mixture.subordinate];
-  const domHue = PRIMARY_HUES[mixture.dominant];
-  const partnerHue = normalizeHue(subHue + (subHue - domHue));
-  return lchToRgb({ l: lch.l, c: lch.c, h: partnerHue } as LCH);
+  return 0; // unreachable: the anchors close the circle
+}
+
+/**
+ * Find a color forming a shared-subordinate juxtaposition with the input:
+ * the input's place on Garau's disk mirrored across its subordinate primary
+ * (yR -> yB, bR -> bY), as far from the grey centre as the input.
+ */
+export function findSharedSubordinatePartner(color: RGB): RGB {
+  const mixture = analyzeVisualMixture(color);
+  const { ryb, radius } = garauDiskPlace(color);
+  const mirror =
+    mixture.subordinate === null
+      ? ryb + 60 // a pure primary has no subordinate to share; step to a neighbour
+      : 2 * PRIMARY_RYB[mixture.subordinate] - ryb;
+  return garauDiskColour(mirror, radius);
 }

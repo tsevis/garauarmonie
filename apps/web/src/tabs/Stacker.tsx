@@ -4,6 +4,7 @@ import {
   compositeVeil,
   validateTransparency,
   classifyJuxtaposition,
+  pairLabel,
   suggestTransparentColor,
   rgbToHex,
   hexToRgb,
@@ -11,6 +12,7 @@ import {
 import ColorField from '../components/ColorField';
 import StackDisplay, { type VeilLayer } from '../components/StackDisplay';
 import { rgbToCss, contrastText } from '../lib/color';
+import { garau } from '../lib/garauColour';
 
 const MAX_LAYERS = 5;
 
@@ -20,15 +22,16 @@ const HARMONY_BADGE: Record<string, { bg: string; fg: string }> = {
   Neutral: { bg: '#ECE9E4', fg: '#5A554E' },
 };
 
-// A searched default whose three planes walk Garau's sequence and are each a
-// valid transparency over the plane beneath: Complete Inversion → Shared
-// Subordinate → Shared Dominant. Base: gold A, lavender B.
-const seedA: RGB = { r: 211, g: 194, b: 65 };
-const seedB: RGB = { r: 188, g: 185, b: 227 };
+// A searched default in the colours of Garau's circle whose three planes walk
+// his sequence, each a valid transparency over the plane beneath:
+// Complete Inversion → Shared Subordinate → Shared Dominant. Base: B and bR.
+const g = garau;
+const seedA: RGB = g('B');
+const seedB: RGB = g('bR');
 const seedLayers: VeilLayer[] = [
-  { id: 'l0', t: { r: 204, g: 103, b: 23 }, alpha: 0.55 }, // → Complete Inversion
-  { id: 'l1', t: { r: 103, g: 140, b: 234 }, alpha: 0.592 }, // → Shared Subordinate
-  { id: 'l2', t: { r: 254, g: 85, b: 156 }, alpha: 0.476 }, // → Shared Dominant
+  { id: 'l0', t: g('BR'), alpha: 0.45 }, // violet → Complete Inversion
+  { id: 'l1', t: g('YB'), alpha: 0.8 }, // green → Shared Subordinate
+  { id: 'l2', t: g('Y'), alpha: 0.85 }, // yellow → Shared Dominant
 ];
 
 interface Props {
@@ -167,10 +170,18 @@ export default function Stacker({ onLoad }: Props) {
       {/* CENTER — stacked display */}
       <section className="space-y-4">
         <div className="rounded-md border border-line bg-panel p-5">
-          <StackDisplay A={A} B={B} layers={layers} depth={depth} selectedId={selectedId} onSelect={setSelectedId} />
+          <StackDisplay
+            A={A}
+            B={B}
+            layers={layers}
+            planes={rows.map((r) => ({ overA: r.newA, overB: r.newB }))}
+            depth={depth}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
           <p className="mt-3 text-center text-xs text-muted">
-            Nested planes recede in depth. Click a plane to select it. Each translucent veil composites over
-            everything beneath — exactly the engine’s Metelli average.
+            Nested planes recede in depth. Click a plane to select it. Each plane is drawn in the colours the
+            engine computes — Metelli’s average in linear light over everything beneath.
           </p>
         </div>
 
@@ -214,7 +225,7 @@ export default function Stacker({ onLoad }: Props) {
                 ))}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-muted">{jux.type}</span>
+                <span className="text-xs text-muted">{pairLabel(jux)}</span>
                 <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: badge.bg, color: badge.fg }}>
                   {jux.harmony}
                 </span>

@@ -8,16 +8,16 @@ import {
 import type { RGB } from '../src/index.js';
 
 describe('analyzeVisualMixture — Garau notation', () => {
-  it('pure red is dominant R, pure', () => {
-    const m = analyzeVisualMixture({ r: 255, g: 0, b: 0 });
+  it("Garau's red is dominant R, pure", () => {
+    const m = analyzeVisualMixture({ r: 200, g: 70, b: 80 });
     expect(m.dominant).toBe('R');
     expect(m.isPure).toBe(true);
     expect(m.notation).toBe('R');
     expect(m.splittability).toBe(0);
   });
 
-  it('pure yellow is dominant Y, pure', () => {
-    const m = analyzeVisualMixture({ r: 255, g: 255, b: 0 });
+  it("Garau's yellow is dominant Y, pure", () => {
+    const m = analyzeVisualMixture({ r: 255, g: 220, b: 86 });
     expect(m.dominant).toBe('Y');
     expect(m.isPure).toBe(true);
   });
@@ -38,14 +38,15 @@ describe('analyzeVisualMixture — Garau notation', () => {
 });
 
 describe('classifyJuxtaposition', () => {
-  it('classifies a pair and scores transparency quality in range', () => {
-    const P: RGB = { r: 220, g: 120, b: 60 };
-    const Q: RGB = { r: 90, g: 120, b: 200 };
+  it('classifies a tertiary pair with a balance score in range', () => {
+    const P: RGB = { r: 233, g: 124, b: 72 }; // yR
+    const Q: RGB = { r: 0, g: 183, b: 166 }; // yB
     const analysis = classifyJuxtaposition(P, Q);
+    if (analysis.kind !== 'tertiary') throw new Error('expected two tertiaries');
     expect(['Shared Subordinate', 'Shared Dominant', 'Complete Inversion', 'Partial Inversion'])
       .toContain(analysis.type);
-    expect(analysis.transparencyQuality).toBeGreaterThanOrEqual(0);
-    expect(analysis.transparencyQuality).toBeLessThanOrEqual(100);
+    expect(analysis.balance.score).toBeGreaterThanOrEqual(0);
+    expect(analysis.balance.score).toBeLessThanOrEqual(100);
   });
 });
 
@@ -55,10 +56,7 @@ describe('harmony grouping (concord / discord)', () => {
     const bY = { r: 120, g: 150, b: 210 }; // bluish yellow-ish (dominant Y, subordinate b)
     const bR = { r: 150, g: 60, b: 150 }; // bluish red (dominant R, subordinate b)
     const a = classifyJuxtaposition(bY, bR);
-    if (a.type === 'Shared Subordinate') expect(a.harmony).toBe('Balanced concord');
-    // harmony must always agree with the book grouping for the assigned type
-    const concord = ['Complete Inversion', 'Shared Subordinate'];
-    expect(a.harmony).toBe(concord.includes(a.type) ? 'Balanced concord' : a.harmony);
+    if (a.kind === 'tertiary' && a.type === 'Shared Subordinate') expect(a.harmony).toBe('Balanced concord');
   });
 
   it('each juxtaposition type maps to the book grouping, and pure colors are neutral', () => {
@@ -72,8 +70,8 @@ describe('harmony grouping (concord / discord)', () => {
     ];
     for (const [x, y] of samples) {
       const a = classifyJuxtaposition(x, y);
-      if (a.harmony === 'Neutral') {
-        expect(a.color1Mixture.isPure || a.color2Mixture.isPure).toBe(true);
+      if (a.kind === 'non-tertiary') {
+        expect(a.harmony).toBe('Neutral');
       } else if (concord.has(a.type)) {
         expect(a.harmony).toBe('Balanced concord');
       } else if (discord.has(a.type)) {

@@ -16,18 +16,26 @@ const CONDITIONS: ReadonlyArray<readonly [string, keyof ValidationReport]> = [
   ['Visual mixture Q', 'visualMixtureQ'],
   ['Unbalanced preference', 'unbalancedPreference'],
   ['Common colour exists', 'commonColorExists'],
+  ['Veil is common colour', 'veilIsCommonColor'],
   ['Divergent colours exist', 'divergentColorsExist'],
+  ['Grounds are divergent', 'groundsAreDivergentColors'],
   ['Balanced transparency', 'balancedTransparency'],
+  ['Ground absorbs excess', 'groundAssimilatesExcess'],
+  ['Veil fits the ground', 'veilFromGround'],
   ['Alpha consistency', 'alphaConsistency'],
 ];
 
-/** The headline: verdict, quality score and juxtaposition type. */
+const NOT_APPLICABLE = 'not applicable';
+
+/** The headline: verdict, Garau's two readouts and the P–Q juxtaposition. */
 export function verdictLines(report: ValidationReport, color: boolean): readonly string[] {
+  const balance = report.balance;
   return [
     heading('Validity', color),
     kv('Verdict', report.overallValid ? 'valid transparency' : 'NOT a valid transparency'),
-    kv('Transparency quality', score(report.transparencyQuality)),
-    kv('Juxtaposition', report.juxtapositionType ?? 'unknown'),
+    kv('Degree of transparency', report.degreeOfTransparency ?? NOT_APPLICABLE),
+    kv('Balance', balance === null ? NOT_APPLICABLE : `${score(balance.score)} (${balance.balanced ? 'balanced' : 'unbalanced'})`),
+    kv('Juxtaposition', report.juxtapositionType ?? report.pairRelation ?? 'unknown'),
   ];
 }
 

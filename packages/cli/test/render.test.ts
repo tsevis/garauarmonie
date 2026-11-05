@@ -44,9 +44,11 @@ describe('suggest options', () => {
     expect(data.alpha).toBeCloseTo(0.3, 10);
   });
 
-  it('ranks candidates by quality, best first', () => {
+  it('ranks valid candidates first, then by balance', () => {
     const { candidates } = JSON.parse(plain('suggest', A, B, '--json'));
-    const qualities = candidates.map((c: { quality: number }) => c.quality);
-    expect([...qualities].sort((x, y) => y - x)).toEqual(qualities);
+    const keys = candidates.map((c: { valid: boolean; balance: number | null }) =>
+      (c.valid ? 1000 : 0) + (c.balance ?? 0),
+    );
+    expect([...keys].sort((x, y) => y - x)).toEqual(keys);
   });
 });

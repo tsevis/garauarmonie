@@ -40,7 +40,7 @@ export const swatchWithNotation = (label: string, c: RGB, color: boolean): strin
 
 export const heading = (text: string, color: boolean): string => `\n${dim(text, color)}`;
 
-export const kv = (label: string, value: string, width = 22): string => `  ${label.padEnd(width)}${value}`;
+export const kv = (label: string, value: string, width = 24): string => `  ${label.padEnd(width)}${value}`;
 
 export const bullets = (items: readonly string[]): readonly string[] => items.map((i) => `  - ${i}`);
 
@@ -55,7 +55,8 @@ export const score = (value: number): string => `${value.toFixed(0)}/100`;
 export function mixtureLines(m: GarauMixture): readonly string[] {
   return [
     kv('Notation', m.notation),
-    kv('Dominant', m.dominant),
+    kv('Achromatic', mark(m.isAchromatic)),
+    kv('Dominant', m.isAchromatic ? 'none' : m.dominant),
     kv('Subordinate', m.subordinate ?? 'none'),
     kv('Ratio', m.ratio.toFixed(3)),
     kv(
