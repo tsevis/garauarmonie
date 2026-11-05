@@ -4,17 +4,19 @@ import { computeForward, validateTransparency, rgbToHex } from '@garau/engine';
 import Composer, { type LoadedConfig } from './tabs/Composer';
 import Stacker from './tabs/Stacker';
 import Analyzer from './tabs/Analyzer';
+import Continuum from './tabs/Continuum';
 import Gallery from './tabs/Gallery';
 import Theory from './tabs/Theory';
 import { useSavedPresets } from './lib/savedStore';
 import type { Preset } from './lib/presets';
 
-type TabId = 'composer' | 'stacker' | 'analyzer' | 'gallery' | 'theory';
+type TabId = 'composer' | 'stacker' | 'analyzer' | 'continuum' | 'gallery' | 'theory';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'composer', label: 'Composer' },
   { id: 'stacker', label: 'Stacker' },
   { id: 'analyzer', label: 'Analyzer' },
+  { id: 'continuum', label: 'Continuum' },
   { id: 'gallery', label: 'Gallery' },
   { id: 'theory', label: 'Theory' },
 ];
@@ -77,6 +79,7 @@ export default function App() {
         {tab === 'composer' && <Composer loaded={loaded} onSave={(config) => save(configToPreset(config))} />}
         {tab === 'stacker' && <Stacker onLoad={loadIntoComposer} />}
         {tab === 'analyzer' && <Analyzer />}
+        {tab === 'continuum' && <Continuum />}
         {tab === 'gallery' && <Gallery onLoad={loadIntoComposer} saved={saved} onRemove={remove} />}
         {tab === 'theory' && <Theory />}
       </main>
